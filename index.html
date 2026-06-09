@@ -3,831 +3,188 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TG P2P - Secure Decentralized Core</title>
+    <title>P2P Мессенджер</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
-        body { background: #e7ebf0; display: flex; justify-content: center; height: 100vh; color: #333; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        body { background: #e5ddd5; display: flex; flex-direction: column; height: 100vh; }
         
-        #app-container { width: 100%; max-width: 1000px; background: white; display: flex; flex-direction: column; height: 100vh; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
-        
-        /* Экран входа */
-        #auth-screen { position: fixed; inset: 0; background: #2481cc; display: flex; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; gap: 15px; display: none; }
-        .auth-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.3); width: 90%; max-width: 400px; display: flex; flex-direction: column; gap: 12px; }
-        .auth-card input { background: #f0f2f5; color: #333; border: 1px solid #ddd; padding: 12px; border-radius: 8px; outline: none; }
-        .auth-card button { background: #2481cc; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .auth-link { color: #2481cc; text-align: center; font-size: 13px; cursor: pointer; text-decoration: underline; margin-top: 5px; }
-        
-        /* Шапка */
-        header { background: #2481cc; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .user-info { display: flex; align-items: center; gap: 10px; }
-        
-        /* Вкладки */
-        .tabs { display: flex; background: #f4f4f5; border-bottom: 1px solid #ddd; }
-        .tab-btn { flex: 1; padding: 15px; border: none; background: none; font-weight: bold; cursor: pointer; color: #666; text-align: center; }
-        .tab-btn.active { color: #2481cc; border-bottom: 3px solid #2481cc; background: rgba(36,129,204,0.05); }
-        
-        /* Экраны */
-        .screen { flex: 1; display: none; overflow-y: auto; padding: 20px; background: #f9f9fa; }
-        .screen.active { display: flex; flex-direction: column; }
-        
-        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        .card h3 { margin-bottom: 10px; color: #2481cc; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-        .flex-row { display: flex; gap: 10px; margin-bottom: 10px; }
-        .flex-row input, .flex-row select { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; outline: none; }
-        
-        .btn { padding: 10px 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; background: #2481cc; color: white; transition: background 0.2s; }
-        .btn:hover { opacity: 0.9; }
-        .btn-green { background: #4caf50; }
-        .btn-gold { background: #f1c40f; color: #333; }
-        .btn-danger { background: #e74c3c; }
+        /* Панель подключения */
+        header { background: #075e54; color: white; padding: 15px; text-align: center; font-size: 14px; position: relative; }
+        .connect-box { margin-top: 10px; display: flex; gap: 5px; justify-content: center; }
+        input, button { padding: 8px; border: none; border-radius: 4px; font-size: 14px; }
+        button { background: #128c7e; color: white; cursor: pointer; font-weight: bold; }
+        button:hover { background: #14a090; }
 
-        .badge { padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
-        .p-owner { background: #e74c3c; color: white; }
-        .p-admin { background: #e67e22; color: white; }
-        .p-vip { background: #9b59b6; color: white; }
-        .p-user { background: #7f8c8d; color: white; }
-        
-        /* Чат-зона */
-        #screen-chat { padding: 0; background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); display: none; }
-        #chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-        
-        .msg { max-width: 70%; padding: 10px 14px; border-radius: 12px; font-size: 15px; word-break: break-word; display: flex; flex-direction: column; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        .msg-header { font-size: 12px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
-        .me { background: #e1f3fc; align-self: flex-end; border-top-right-radius: 2px; }
-        .interlocutor { background: white; align-self: flex-start; border-top-left-radius: 2px; }
-        .sys-msg { background: rgba(0,0,0,0.5); color: white; align-self: center; font-size: 12px; border-radius: 20px; padding: 4px 12px; box-shadow: none; }
-        
-        .gift-msg { background: linear-gradient(135deg, #ffeaa7, #fab1a0) !important; color: #2d3436 !important; border: 2px solid #e17055; font-weight: bold; }
+        /* Кнопка Выйти в шапке */
+        .logout-btn { position: absolute; top: 12px; right: 15px; background: #d9534f; padding: 6px 12px; font-size: 12px; }
+        .logout-btn:hover { background: #c9302c; }
 
-        .chat-controls { background: #f4f4f5; padding: 8px 15px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #ddd; flex-wrap: wrap; }
-        footer { background: white; padding: 12px; display: flex; gap: 10px; border-top: 1px solid #eee; }
-        footer input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 20px; outline: none; }
+        /* Экран авторизации (ввода ника) */
+        #auth-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #e5ddd5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; z-index: 10; }
+        #auth-screen div { font-size: 18px; color: #075e54; font-weight: bold; }
+        #auth-screen input { border: 1px solid #ccc; width: 250px; padding: 10px; }
 
-        .item-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
-        .item-list li { background: #f8f9fa; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #2481cc; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .code-display { font-family: monospace; background: #ddd; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+        /* Окно чата */
+        #chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg { max-width: 75%; padding: 8px 12px; border-radius: 8px; font-size: 15px; word-break: break-word; }
+        .me { background: #dcf8c6; align-self: flex-end; }
+        .interlocutor { background: white; align-self: flex-start; }
+        .system { background: #fff3cd; color: #856404; align-self: center; font-size: 12px; }
+
+        /* Поле ввода сообщения */
+        footer { background: #f0f0f0; padding: 10px; display: flex; gap: 10px; }
+        footer input { flex: 1; border: 1px solid #ccc; border-radius: 20px; padding: 10px 15px; }
     </style>
 </head>
 <body>
 
-    <!-- Экран входа -->
     <div id="auth-screen">
-        <div class="auth-card" id="login-form-box">
-            <h2 style="text-align:center; color:#2481cc; margin-bottom: 10px;">Telegram P2P Client</h2>
-            <input type="text" id="auth-nick" placeholder="Введите ваш Никнейм">
-            <input type="password" id="auth-pass" placeholder="Введите Пароль">
-            <button onclick="login()">Войти / Создать аккаунт</button>
-            <div class="auth-link" onclick="toggleRecoveryForm(true)">Забыл ник или пароль?</div>
-        </div>
-
-        <div class="auth-card" id="recovery-form-box" style="display: none;">
-            <h2 style="text-align:center; color:#e67e22; margin-bottom: 10px;">Восстановление доступа</h2>
-            <p style="font-size: 12px; color: #666; text-align: center; margin-bottom: 5px;">Вставьте ваш секретный код восстановления, выданный при регистрации:</p>
-            <input type="text" id="recovery-key-input" placeholder="Ваш секретный код">
-            <button class="btn btn-gold" onclick="recoverAccount()">Восстановить аккаунт</button>
-            <div class="auth-link" onclick="toggleRecoveryForm(false)">Назад ко входу</div>
-        </div>
+        <div>Придумайте свой ник для чата:</div>
+        <input type="text" id="my-username-input" placeholder="Например: ivan777" onkeypress="checkAuthEnter(event)">
+        <button onclick="handleAuthSubmit()">Войти в мессенджер</button>
     </div>
 
-    <div id="app-container">
-        <!-- Шапка -->
-        <header>
-            <div class="user-info">
-                <span id="my-prefix"></span>
-                <strong id="my-name" style="font-size:18px;">---</strong>
-                <span id="my-balance" style="background:#fff; color:#2481cc; padding:2px 8px; border-radius:20px; font-weight:bold; font-size:13px;">0 $TG$</span>
-            </div>
-            <div>
-                Ваш ID: <strong id="my-peer-id" style="background:rgba(0,0,0,0.2); padding:4px 8px; border-radius:4px; font-size:12px; font-family:monospace;">Генерация...</strong>
-                <button class="btn btn-danger" style="padding:4px 8px; margin-left:10px; font-size: 12px;" onclick="logout()">Выйти</button>
-            </div>
-        </header>
-
-        <!-- Вкладки -->
-        <div class="tabs" id="main-tabs">
-            <button class="tab-btn active" onclick="switchTab('tab-chats')">Коннект / Сети</button>
-            <button class="tab-btn" onclick="switchTab('tab-friends')">Контакты</button>
-            <button class="tab-btn" onclick="switchTab('tab-groups')">Группы</button>
-            <button class="tab-btn" onclick="switchTab('tab-shop')">Магазин</button>
-            <button class="tab-btn" onclick="switchTab('tab-support')">Поддержка</button>
+    <header>
+        <button class="logout-btn" onclick="logout()">Выйти</button>
+        <div>Ваше имя для связи: <strong id="my-id">Ожидание входа...</strong></div>
+        <div class="connect-box">
+            <input type="text" id="peer-id-input" placeholder="Введите ник друга">
+            <button onclick="connectToPeer()">Подключиться</button>
         </div>
+    </header>
 
-        <!-- ВКЛАДКА: КОННЕКТ -->
-        <div id="tab-chats" class="screen active">
-            <div id="chat-requests-card" class="card" style="border-left: 4px solid #e67e22;">
-                <h3 style="color: #e67e22;">🔔 Входящие запросы на переписку (Анти-спам)</h3>
-                <ul id="chat-requests-list" class="item-list">
-                    <li style="color: #777; font-size: 13px;">Запросов на диалог нет. Ваш чат в безопасности от спама.</li>
-                </ul>
-            </div>
-
-            <div class="card">
-                <h3>Прямое P2P подключение к другу</h3>
-                <div class="flex-row">
-                    <input type="text" id="connect-id-input" placeholder="Вставьте P2P ID для отправки запроса">
-                    <button class="btn btn-green" onclick="requestChatConnection()">Отправить запрос на чат</button>
-                </div>
-            </div>
-
-            <!-- Заявки на монеты для Овнера -->
-            <div id="owner-requests-card" class="card" style="display:none; border-left: 4px solid #e74c3c;">
-                <h3 style="color: #e74c3c;">📥 Заявки на покупку монет (Для Owner)</h3>
-                <ul id="owner-requests-list" class="item-list">
-                    <li id="owner-no-requests-notice" style="color: #666; font-size: 13px;">Активных запросов от подключенных юзеров нет.</li>
-                </ul>
-            </div>
-        </div>
-
-        <!-- ВКЛАДКА: ДРУЗЬЯ -->
-        <div id="tab-friends" class="screen">
-            <div class="card">
-                <h3>Добавить друга вручную</h3>
-                <div class="flex-row">
-                    <input type="text" id="friend-name-input" placeholder="Никнейм друга">
-                    <input type="text" id="friend-id-input" placeholder="P2P ID (необязательно)">
-                    <button class="btn" onclick="addFriendHand()">Сохранить</button>
-                </div>
-            </div>
-            <div class="card">
-                <h3>Записная книга контактов</h3>
-                <ul id="friends-list" class="item-list"></ul>
-            </div>
-        </div>
-
-        <!-- ВКЛАДКА: ГРУППЫ -->
-        <div id="tab-groups" class="screen">
-            <div class="card">
-                <h3>Создать Новую Группу</h3>
-                <div class="flex-row">
-                    <input type="text" id="group-name-input" placeholder="Название группы">
-                    <button class="btn btn-green" onclick="createGroup()">Создать</button>
-                </div>
-            </div>
-            <div class="card">
-                <h3>Доступные комнаты</h3>
-                <ul id="groups-list" class="item-list"></ul>
-            </div>
-        </div>
-
-        <!-- ВКЛАДКА: МАГАЗИН -->
-        <div id="tab-shop" class="screen">
-            <div class="card" style="border-left: 4px solid #f1c40f;">
-                <h3>Заказать монеты у Владельца</h3>
-                <p style="font-size: 13px; color: #555; margin-bottom: 10px;">
-                    Укажите количество. Когда вы свяжетесь с Владельцем (<b style="color:#e74c3c">owner</b>), у него отобразится развернутый тикет с вашим ID и ником. После оплаты он выдаст коины.
-                </p>
-                <div class="flex-row">
-                    <input type="number" id="buy-coins-amount" placeholder="Сколько монет хотите?" min="100">
-                    <button class="btn btn-gold" onclick="sendBuyRequestToOwner()">Создать заявку на монеты</button>
-                </div>
-                <div id="request-status" style="font-size: 12px; font-weight: bold; color: #2481cc;"></div>
-            </div>
-
-            <div id="buy-vip-box" class="card">
-                <h3>Приобрести ⭐ VIP Статус</h3>
-                <p style="margin-bottom: 10px; font-size:13px;">Цена: <b>500 $TG$</b>. Позволяет заводить до 3 аккаунтов на ПК.</p>
-                <button class="btn" style="background:#9b59b6; width: 100%;" onclick="buyVip()">Купить VIP</button>
-            </div>
-        </div>
-
-        <!-- ВКЛАДКА: ПОДДЕРЖКА -->
-        <div id="tab-support" class="screen">
-            <div class="card">
-                <h3>Служба поддержки P2P</h3>
-                <p style="font-size:13px; color:#555; margin-bottom:10px;">Возникла проблема, баг или не пришли монеты? Напишите тикет. Он автоматически отобразится у администрации при связи.</p>
-                <textarea id="support-text" placeholder="Опишите вашу проблему подробно..." style="width:100%; height:100px; padding:10px; border:1px solid #ddd; border-radius:6px; resize:none; outline:none; margin-bottom:10px;"></textarea>
-                <button class="btn" style="width:100%;" onclick="sendSupportTicket()">Отправить тикет Владельцу</button>
-                <div id="support-status" style="font-size:12px; color:green; margin-top:5px;"></div>
-            </div>
-        </div>
-
-        <!-- ЭКРАН: ЧАТ -->
-        <div id="screen-chat" class="screen">
-            <div class="chat-controls">
-                <button class="btn btn-danger" style="padding:6px 12px; font-size:12px;" onclick="closeChat()">⬅ В Меню</button>
-                <div style="flex:1; text-align:center;"><strong id="chat-title">Диалог</strong></div>
-                
-                <!-- Подарки -->
-                <div style="display:flex; gap:4px; align-items:center; background: rgba(0,0,0,0.05); padding: 4px; border-radius: 6px;">
-                    <select id="gift-type" style="padding:4px; font-size:12px;">
-                        <option value="🎁 Premium (100 $TG$)">🎁 Premium</option>
-                        <option value="🎂 Тортик (50 $TG$)">🎂 Тортик</option>
-                        <option value="❤️ Сердце (20 $TG$)">❤️ Сердце</option>
-                        <option value="🚀 Ракета (250 $TG$)">🚀 Ракета</option>
-                    </select>
-                    <button class="btn btn-gold" style="padding:5px 8px; font-size:11px;" onclick="sendGift()">Подарить</button>
-                </div>
-
-                <!-- Донаты / Монеты через чат -->
-                <div style="display:flex; gap:2px; align-items:center; margin-left: 5px;">
-                    <input type="number" id="donate-amount" placeholder="Монеты" style="width:65px; padding:5px; font-size:12px; border:1px solid #ccc; border-radius:4px;">
-                    <button class="btn btn-green" style="padding:5px 8px; font-size:11px;" onclick="sendDonate()">Дать</button>
-                </div>
-
-                <!-- Admin Actions -->
-                <div id="admin-actions" style="display:none; gap:4px; align-items:center; border-left:1px solid #ccc; padding-left:8px; margin-left:5px;">
-                    <select id="admin-role-select" style="padding:4px; font-size:12px;">
-                        <option value="user">User</option>
-                        <option value="vip">VIP</option>
-                        <option value="admin">Admin</option>
-                    </select>
-                    <button class="btn" style="padding:5px 8px; font-size:11px; background:#e67e22;" onclick="adminChangeRole()">Роль</button>
-                </div>
-            </div>
-
-            <div id="chat-messages"></div>
-
-            <footer>
-                <input type="text" id="chat-input" placeholder="Напишите сообщение..." onkeypress="checkChatEnter(event)">
-                <button class="btn" onclick="sendChatMessage()">Отправить</button>
-            </footer>
-        </div>
+    <div id="chat-box">
+        <div class="msg system">Скажите другу свой ник, либо введите его ник, чтобы начать общение.</div>
     </div>
+
+    <footer>
+        <input type="text" id="message-input" placeholder="Введите сообщение..." disabled onkeypress="checkEnter(event)">
+        <button id="send-btn" onclick="sendMessage()" disabled>Отправить</button>
+    </footer>
 
     <script>
-        let peer = null;
+        let peer = null; 
         let conn = null;
-        let incomingRequests = {}; 
-        let allConnections = {}; // Глобальная база всех открытых дескрипторов туннелей
-        
-        let me = { username: '', role: 'user', balance: 0, pendingRequest: 0, supportTicket: '' };
-        let activeChat = { name: 'Друг', role: 'user', id: '' };
+        let myName = "";
+        const chatBox = document.getElementById('chat-box');
+        const msgInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
 
-        function initLocalStorageDatabase() {
-            if (!localStorage.getItem('p2p_db_users')) {
-                let initialDb = {};
-                initialDb["neon"] = { 
-                    pass: "qwserd", 
-                    role: "owner", 
-                    balance: 999999, 
-                    friends: {},
-                    recoveryKey: "KEY-NEON-99"
-                };
-                localStorage.setItem('p2p_db_users', JSON.stringify(initialDb));
-            }
-            if (!localStorage.getItem('p2p_db_groups')) {
-                localStorage.setItem('p2p_db_groups', JSON.stringify({}));
-            }
-        }
-
+        // Проверяем при запуске страницы, сохранен ли ник в браузере
         window.onload = function() {
-            initLocalStorageDatabase();
-            let session = localStorage.getItem('p2p_active_session');
-            if (session) {
-                let db = JSON.parse(localStorage.getItem('p2p_db_users')) || {};
-                let userObj = db[session];
-                if(userObj) {
-                    me.username = session;
-                    me.role = userObj.role;
-                    me.balance = userObj.balance || 0;
-                    startApp();
-                    return;
-                }
+            const savedName = localStorage.getItem('p2p_chat_username');
+            if (savedName) {
+                // Если нашли ник, сразу запускаем мессенджер с ним
+                startMessenger(savedName);
             }
-            document.getElementById('auth-screen').style.display = 'flex';
         };
 
-        function login() {
-            const nick = document.getElementById('auth-nick').value.trim();
-            const pass = document.getElementById('auth-pass').value.trim();
-            if(!nick || !pass) return alert("Заполните все поля!");
-
-            let db = JSON.parse(localStorage.getItem('p2p_db_users')) || {};
-
-            if (db[nick]) {
-                if (db[nick].pass !== pass) return alert("Неверный пароль!");
-                me.username = nick;
-                me.role = db[nick].role;
-                me.balance = db[nick].balance || 0;
-            } else {
-                let maxAllowed = 1;
-                let hasAdmin = false; let hasVip = false;
-                for(let u in db) {
-                    if(db[u].role === 'owner' || db[u].role === 'admin') hasAdmin = true;
-                    if(db[u].role === 'vip') hasVip = true;
-                }
-                if (hasAdmin) maxAllowed = Infinity;
-                else if (hasVip) maxAllowed = 3;
-
-                let totalAccs = Object.keys(db).length;
-                if(totalAccs >= maxAllowed && !hasAdmin) {
-                     return alert(`Ошибка лимита! На этом ПК можно иметь не более ${maxAllowed} акк.`);
-                }
-
-                let generatedKey = "KEY-" + Math.random().toString(36).substr(2, 9).toUpperCase();
-
-                db[nick] = { pass: pass, role: "user", balance: 0, friends: {}, recoveryKey: generatedKey };
-                localStorage.setItem('p2p_db_users', JSON.stringify(db));
-                
-                me.username = nick;
-                me.role = "user";
-                me.balance = 0;
-
-                alert(`Аккаунт успешно создан!\n\nОБЯЗАТЕЛЬНО запишите ваш код восстановления:\n${generatedKey}`);
-            }
-
-            localStorage.setItem('p2p_active_session', me.username);
-            document.getElementById('auth-screen').style.display = 'none';
-            startApp();
-        }
-
-        function toggleRecoveryForm(show) {
-            if(show) {
-                document.getElementById('login-form-box').style.display = 'none';
-                document.getElementById('recovery-form-box').style.display = 'flex';
-            } else {
-                document.getElementById('recovery-form-box').style.display = 'none';
-                document.getElementById('login-form-box').style.display = 'flex';
-            }
-        }
-
-        function recoverAccount() {
-            const key = document.getElementById('recovery-key-input').value.trim();
-            if(!key) return alert("Введите секретный код!");
-
-            let db = JSON.parse(localStorage.getItem('p2p_db_users')) || {};
-            for(let username in db) {
-                if(db[username].recoveryKey === key) {
-                    alert(`Доступ получен!\nЛогин: ${username}\nПароль: ${db[username].pass}`);
-                    document.getElementById('auth-nick').value = username;
-                    document.getElementById('auth-pass').value = db[username].pass;
-                    toggleRecoveryForm(false);
-                    return;
-                }
-            }
-            alert("Код восстановления не найден!");
-        }
-
-        function logout() {
-            localStorage.removeItem('p2p_active_session'); 
-            location.reload();
-        }
-
-        function startApp() {
-            if(me.role === 'owner') {
-                document.getElementById('owner-requests-card').style.display = 'block';
-            }
-            updateProfileUI();
-            renderFriends();
-            renderGroups();
-            initPeer();
-        }
-
-        function updateProfileUI() {
-            if(me.role === 'owner') {
-                document.getElementById('my-balance').innerText = `∞ $TG$`;
-            } else {
-                document.getElementById('my-balance').innerText = `${me.balance} $TG$`;
-            }
-            document.getElementById('my-name').innerText = me.username;
+        // Обработчик ручного ввода ника (кнопка Войти)
+        function handleAuthSubmit() {
+            const input = document.getElementById('my-username-input').value.trim();
+            if (!input) return alert('Пожалуйста, введите ник!');
             
-            let prefixEl = document.getElementById('my-prefix');
-            prefixEl.className = 'badge';
-            if(me.role === 'owner') { prefixEl.innerText = 'Владелец'; prefixEl.classList.add('p-owner'); }
-            else if(me.role === 'admin') { prefixEl.innerText = 'Админ'; prefixEl.classList.add('p-admin'); }
-            else if(me.role === 'vip') { prefixEl.innerText = '⭐ VIP'; prefixEl.classList.add('p-vip'); }
-            else { prefixEl.innerText = 'Юзер'; prefixEl.classList.add('p-user'); }
+            // Сохраняем в память браузера
+            localStorage.setItem('p2p_chat_username', input);
+            startMessenger(input);
         }
 
-        function initPeer() {
-            peer = new Peer();
-            peer.on('open', (id) => {
-                document.getElementById('my-peer-id').innerText = id;
-            });
-            
-            peer.on('connection', (connection) => {
-                let senderId = connection.peer;
-                incomingRequests[senderId] = connection;
-                allConnections[senderId] = connection; // сохраняем туннель в глобальный кэш
-                
-                connection.on('data', (data) => {
-                    if (data && data.type === 'request_handshake') {
-                        showIncomingChatRequest(data.username, senderId, data.requestedCoins, data.supportTicket);
-                    } else if (data && data.type === 'chat_accepted') {
-                        conn = connection;
-                        activeChat.name = data.username || 'Друг';
-                        activeChat.role = data.role || 'user';
-                        activeChat.id = senderId;
-                        openChatWindow();
-                    } else if (data && data.type === 'runtime_coin_request') {
-                        if(me.role === 'owner') {
-                            showOwnerCoinRequest(data.username, data.amount, senderId);
-                        }
-                    } else {
-                        if (typeof data === 'object' && data.type) {
-                            handleSystemPacket(data);
-                        } else {
-                            appendMsg(activeChat.name, data, 'interlocutor', activeChat.role);
-                        }
-                    }
-                });
-            });
-        }
+        // Функция запуска мессенджера
+        function startMessenger(username) {
+            myName = username;
+            document.getElementById('auth-screen').style.display = 'none'; // Скрываем экран входа
 
-        function requestChatConnection() {
-            const id = document.getElementById('connect-id-input').value.trim();
-            if(!id) return alert("Введите ID!");
-            
-            let tempConn = peer.connect(id);
-            allConnections[id] = tempConn; // логируем исходящий стрим до открытия
+            // Создаем Peer с сохраненным именем (в нижнем регистре)
+            peer = new Peer(myName.toLowerCase()); 
 
-            // Слушатель вешается СРАЗУ, защищает от асинхронного пропуска пакетов
-            tempConn.on('data', (data) => {
-                if (data && data.type === 'chat_accepted') {
-                    conn = tempConn; 
-                    activeChat.name = data.username || 'Друг';
-                    activeChat.role = data.role || 'user';
-                    activeChat.id = id;
-                    openChatWindow();
-                } else if (data && data.type === 'runtime_coin_request') {
-                    if(me.role === 'owner') {
-                        showOwnerCoinRequest(data.username, data.amount, id);
-                    }
-                } else if (typeof data === 'object' && data.type) {
-                    handleSystemPacket(data);
+            // Ошибка, если ник занят
+            peer.on('error', (err) => {
+                if (err.type === 'unavailable-id') {
+                    alert('Этот ник уже занят! Выберите другой.');
+                    logout(); // Сбрасываем регистрацию, чтобы ввести заново
                 } else {
-                    appendMsg(activeChat.name, data, 'interlocutor', activeChat.role);
+                    alert('Ошибка сети: ' + err.type);
                 }
             });
-            
-            tempConn.on('open', () => {
-                tempConn.send({
-                    type: 'request_handshake',
-                    username: me.username,
-                    requestedCoins: me.pendingRequest,
-                    supportTicket: me.supportTicket
-                });
-                alert("Запрос на переписку отправлен! Ждем ответа.");
+
+            // Отображаем ваш личный ник при успешной готовности сети
+            peer.on('open', (id) => {
+                document.getElementById('my-id').innerText = id;
+            });
+
+            // Слушаем входящие подключения
+            peer.on('connection', (connection) => {
+                conn = connection;
+                setupConnection();
+                appendMessage('Система', `Пользователь ${conn.peer} подключился к вам!`, 'system');
             });
         }
 
-        function showIncomingChatRequest(senderName, senderId, coinsCount, ticketText) {
-            const list = document.getElementById('chat-requests-list');
-            if(list.innerText.includes("Запросов на диалог нет")) list.innerHTML = '';
+        // Функция выхода из аккаунта
+        function logout() {
+            localStorage.removeItem('p2p_chat_username'); // Удаляем сохраненный ник из памяти
+            if (peer) {
+                peer.destroy(); // Закрываем все активные соединения PeerJS
+            }
+            location.reload(); // Перезагружаем страницу, чтобы вернуть форму ввода
+        }
 
-            let li = document.createElement('li');
-            li.id = `req-${senderId}`;
-            li.style.flexDirection = 'column';
-            li.style.alignItems = 'flex-start';
-            li.style.gap = '8px';
-
-            let infoText = `Пользователь <b>${senderName}</b> запрашивает диалог. <br><span class="code-display">ID: ${senderId}</span>`;
+        // Функция инициализации связи при клике "Подключиться"
+        function connectToPeer() {
+            const peerId = document.getElementById('peer-id-input').value.trim().toLowerCase();
+            if (!peerId) return alert('Введите ник друга!');
+            if (peerId === myName.toLowerCase()) return alert('Нельзя подключиться к самому себе!');
             
-            if (me.role === 'owner') {
-                if (coinsCount > 0) infoText += `<br><b style="color:#f1c40f;">Требуется монет: ${coinsCount} $TG$</b>`;
-                if (ticketText) infoText += `<br><b style="color:#e74c3c;">Жалоба/Тикет:</b> <i style="color:#555;">"${ticketText}"</i>`;
-            }
-
-            li.innerHTML = `
-                <div>${infoText}</div>
-                <div style="display:flex; gap:10px; margin-top:5px;">
-                    <button class="btn btn-green" style="padding:5px 12px; font-size:12px;" onclick="acceptChatRequest('${senderId}', '${senderName}')">Принять чат</button>
-                    <button class="btn btn-danger" style="padding:5px 12px; font-size:12px;" onclick="rejectChatRequest('${senderId}')">Сбросить</button>
-                </div>
-            `;
-            list.appendChild(li);
-
-            if(me.role === 'owner' && coinsCount > 0) {
-                showOwnerCoinRequest(senderName, coinsCount, senderId);
-            }
+            conn = peer.connect(peerId);
+            setupConnection();
+            appendMessage('Система', `Попытка подключиться к ${peerId}...`, 'system');
         }
 
-        function acceptChatRequest(senderId, senderName) {
-            conn = incomingRequests[senderId] || allConnections[senderId];
-            if(conn) {
-                conn.send({ 
-                    type: 'chat_accepted', 
-                    username: me.username,
-                    role: me.role 
-                });
-                activeChat.name = senderName;
-                activeChat.role = 'user'; 
-                activeChat.id = senderId;
-                openChatWindow();
-                if(document.getElementById(`req-${senderId}`)) document.getElementById(`req-${senderId}`).remove();
-                checkRequestsEmpty();
-            }
+        // Настройка отправки/приема сообщений
+        function setupConnection() {
+            conn.on('open', () => {
+                msgInput.disabled = false;
+                sendBtn.disabled = false;
+                appendMessage('Система', 'Связь установлена! Приятного общения.', 'system');
+            });
+
+            conn.on('data', (data) => {
+                appendMessage('Друг', data, 'interlocutor');
+            });
+
+            conn.on('close', () => {
+                appendMessage('Система', 'Собеседник отключился.', 'system');
+                msgInput.disabled = true;
+                sendBtn.disabled = true;
+            });
         }
 
-        function rejectChatRequest(senderId) {
-            if(allConnections[senderId]) allConnections[senderId].close();
-            delete incomingRequests[senderId];
-            delete allConnections[senderId];
-            if(document.getElementById(`req-${senderId}`)) document.getElementById(`req-${senderId}`).remove();
-            checkRequestsEmpty();
+        // Отправка текста
+        function sendMessage() {
+            const text = msgInput.value.trim();
+            if (!text || !conn) return;
+
+            conn.send(text);
+            appendMessage('Вы', text, 'me');
+            msgInput.value = '';
         }
 
-        function checkRequestsEmpty() {
-            const list = document.getElementById('chat-requests-list');
-            if(list.children.length === 0) {
-                list.innerHTML = `<li style="color: #777; font-size: 13px;">Запросов на диалог нет. Ваш чат в безопасности от спама.</li>`;
-            }
+        function appendMessage(sender, text, type) {
+            const msgDiv = document.createElement('div');
+            msgDiv.classList.add('msg', type);
+            msgDiv.innerText = text;
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        function openChatWindow() {
-            document.getElementById('main-tabs').style.display = 'none';
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            
-            const screenChat = document.getElementById('screen-chat');
-            screenChat.style.display = 'flex';
-            screenChat.classList.add('active');
-            document.getElementById('chat-messages').innerHTML = '';
-            document.getElementById('chat-title').innerText = `Чат с ${activeChat.name}`;
-            appendMsg('Система', 'Безопасный туннель связи открыт.', 'sys-msg');
-
-            if(me.role === 'owner' || me.role === 'admin') {
-                document.getElementById('admin-actions').style.display = 'flex';
-            }
+        function checkEnter(e) {
+            if (e.key === 'Enter') sendMessage();
         }
 
-        function closeChat() {
-            // ИСПРАВЛЕНО: Больше не вызываем жесткий разрыв conn.close()! Канал сохраняется в фоне.
-            document.getElementById('screen-chat').style.display = 'none';
-            document.getElementById('screen-chat').classList.remove('active');
-            document.getElementById('main-tabs').style.display = 'flex';
-            switchTab('tab-chats');
+        function checkAuthEnter(e) {
+            if (e.key === 'Enter') handleAuthSubmit();
         }
-
-        function handleSystemPacket(pack) {
-            let db = JSON.parse(localStorage.getItem('p2p_db_users')) || {};
-            if(!db[me.username]) db[me.username] = { pass: "", role: me.role, balance: me.balance, friends: {} };
-
-            switch(pack.type) {
-                case 'donate': // Прием монет через ЧАТ
-                    me.balance = parseInt(me.balance) + parseInt(pack.amount);
-                    if(me.role !== 'owner') db[me.username].balance = me.balance;
-                    localStorage.setItem('p2p_db_users', JSON.stringify(db));
-                    updateProfileUI();
-                    appendMsg('Система', `💸 Перевод: +${pack.amount} $TG$ от ${activeChat.name}!`, 'sys-msg');
-                    break;
-
-                case 'gift':
-                    appendMsg(activeChat.name, `🎁 ПОДАРОК: Получен ${pack.giftName}!`, 'interlocutor gift-msg', activeChat.role);
-                    break;
-
-                case 'role_force':
-                    me.role = pack.newRole;
-                    db[me.username].role = me.role;
-                    localStorage.setItem('p2p_db_users', JSON.stringify(db));
-                    updateProfileUI();
-                    appendMsg('Система', `🔔 Роль изменена на [${pack.newRole.toUpperCase()}]`, 'sys-msg');
-                    break;
-
-                case 'coins_approved': // Прием монет через ПАНЕЛЬ ОВНЕРА
-                    me.balance = parseInt(me.balance) + parseInt(pack.amount);
-                    me.pendingRequest = 0;
-                    if(me.role !== 'owner') db[me.username].balance = me.balance;
-                    localStorage.setItem('p2p_db_users', JSON.stringify(db));
-                    updateProfileUI();
-                    
-                    let statusBox = document.getElementById('request-status');
-                    if(statusBox) statusBox.innerText = `Заявка одобрена! Зачислено ${pack.amount} $TG$!`;
-                    
-                    appendMsg('Система', `✅ Владелец зачислил вам ${pack.amount} $TG$ по заявке!`, 'sys-msg');
-                    break;
-            }
-        }
-
-        function sendDataPacket(obj) {
-            if(conn && conn.open) conn.send(obj);
-        }
-
-        function sendChatMessage() {
-            const input = document.getElementById('chat-input');
-            const txt = input.value.trim();
-            if(!txt || !conn) return;
-            conn.send(txt);
-            appendMsg(me.username, txt, 'me', me.role);
-            input.value = '';
-        }
-
-        // Выдача монет напрямую ЧЕРЕЗ ЧАТ
-        function sendDonate() {
-            const amt = parseInt(document.getElementById('donate-amount').value);
-            if(isNaN(amt) || amt <= 0) return alert("Укажите сумму!");
-            if(me.role !== 'owner' && me.balance < amt) return alert("Не хватает монет!");
-
-            if(me.role !== 'owner') {
-                me.balance -= amt;
-                let db = JSON.parse(localStorage.getItem('p2p_db_users')) || {};
-                if(db[me.username]) db[me.username].balance = me.balance;
-                localStorage.setItem('p2p_db_users', JSON.stringify(db));
-            }
-            updateProfileUI();
-
-            sendDataPacket({ type: 'donate', amount: amt });
-            appendMsg('Система', `Вы выдали напрямую через чат ${amt} $TG$ для ${activeChat.name}`, 'sys-msg');
-            document.getElementById('donate-amount').value = '';
-        }
-
-        function sendGift() {
-            const gift = document.getElementById('gift-type').value;
-            let cost = 20;
-            if(gift.includes("100")) cost = 100;
-            if(gift.includes("50")) cost = 50;
-            if(gift.includes("250")) cost = 250;
-
-            if(me.role !== 'owner' && me.balance < cost) return alert("Недостаточно средств!");
-
-            if(me.role !== 'owner') {
-                me.balance -= cost;
-                let db = JSON.parse(localStorage.getItem('p2p_db_users')) || {};
-                if(db[me.username]) db[me.username].balance = me.balance;
-                localStorage.setItem('p2p_db_users', JSON.stringify(db));
-            }
-            updateProfileUI();
-
-            sendDataPacket({ type: 'gift', giftName: gift });
-            appendMsg(me.username, `🎁 Вы подарили ${gift}`, 'me gift-msg', me.role);
-        }
-
-        function sendBuyRequestToOwner() {
-            const amount = parseInt(document.getElementById('buy-coins-amount').value);
-            if(isNaN(amount) || amount < 100) return alert("Минимум 100 монет!");
-            
-            me.pendingRequest = amount;
-            document.getElementById('request-status').innerText = `Заявка создана: Ожидание ${amount} монет.`;
-
-            if(conn && conn.open) {
-                conn.send({
-                    type: 'runtime_coin_request',
-                    username: me.username,
-                    amount: amount
-                });
-                document.getElementById('request-status').innerText += " Заявка продублирована Овнеру в чат!";
-            } else {
-                document.getElementById('request-status').innerText += " Перейдите в 'Коннект' и отправьте вызов Овнеру.";
-            }
-        }
-
-        function sendSupportTicket() {
-            const txt = document.getElementById('support-text').value.trim();
-            if(!txt) return alert("Введите текст обращения!");
-            me.supportTicket = txt;
-            document.getElementById('support-status').innerText = "Тикет сохранен! Свяжитесь с Владельцем для автоматической выгрузки.";
-            document.getElementById('support-text').value = '';
-        }
-
-        function showOwnerCoinRequest(clientName, amount, clientPeerId) {
-            const list = document.getElementById('owner-requests-list');
-            const notice = document.getElementById('owner-no-requests-notice');
-            if(notice) notice.remove();
-            
-            if(document.getElementById(`coin-req-${clientPeerId}`)) {
-                document.getElementById(`coin-req-${clientPeerId}`).innerHTML = `
-                    <div>Заявка! Ник: <b>${clientName}</b> | Сумма: <b style="color:green;">${amount} $TG$</b> <br><span style="font-size:11px;" class="code-display">ID: ${clientPeerId}</span></div>
-                    <button class="btn btn-gold" style="padding:6px 10px; font-size:11px;" onclick="approveCoinsFromOwner('${clientPeerId}', ${amount})">Выдать монеты</button>
-                `;
-                return;
-            }
-
-            let li = document.createElement('li');
-            li.id = `coin-req-${clientPeerId}`;
-            li.innerHTML = `
-                <div>Заявка! Ник: <b>${clientName}</b> | Сумма: <b style="color:green;">${amount} $TG$</b> <br><span style="font-size:11px;" class="code-display">ID: ${clientPeerId}</span></div>
-                <button class="btn btn-gold" style="padding:6px 10px; font-size:11px;" onclick="approveCoinsFromOwner('${clientPeerId}', ${amount})">Выдать монеты</button>
-            `;
-            list.appendChild(li);
-        }
-
-        // Выдача монет ЧЕРЕЗ ИНТЕРФЕЙС ЗАЯВОК ОВНЕРА
-        function approveCoinsFromOwner(clientPeerId, amount) {
-            // Поиск туннеля во всех доступных структурах данных для отказоустойчивости
-            let targetConn = allConnections[clientPeerId] || incomingRequests[clientPeerId] || conn;
-            
-            if(targetConn && targetConn.open) {
-                targetConn.send({ type: 'coins_approved', amount: amount });
-                alert(`Успешно отправлено ${amount} $TG$ на удаленное устройство.`);
-                
-                // Печатаем лог в чат, если сидим с этим юзером
-                if(activeChat.id === clientPeerId && document.getElementById('screen-chat').classList.contains('active')) {
-                    appendMsg('Система', `Вы одобрили тикет и начислили ${amount} $TG$`, 'sys-msg');
-                }
-                
-                if(document.getElementById(`coin-req-${clientPeerId}`)) {
-                    document.getElementById(`coin-req-${clientPeerId}`).remove();
-                }
-                checkOwnerRequestsEmpty();
-            } else {
-                alert("Ошибка! Канал связи закрыт. Попросите пользователя отправить вам запрос на чат заново для восстановления сессии.");
-            }
-        }
-
-        function checkOwnerRequestsEmpty() {
-            const list = document.getElementById('owner-requests-list');
-            if(list.children.length === 0) {
-                list.innerHTML = `<li id="owner-no-requests-notice" style="color: #666; font-size: 13px;">Активных запросов от подключенных юзеров нет.</li>`;
-            }
-        }
-
-        function buyVip() {
-            if(me.role === 'vip' || me.role === 'admin' || me.role === 'owner') return alert("У вас уже высокий статус!");
-            if(me.balance < 500) return alert("Недостаточно средств!");
-
-            me.balance -= 500;
-            me.role = 'vip';
-            let db = JSON.parse(localStorage.getItem('p2p_db_users')) || {};
-            if(db[me.username]) {
-                db[me.username].balance = me.balance;
-                db[me.username].role = 'vip';
-            }
-            localStorage.setItem('p2p_db_users', JSON.stringify(db));
-            updateProfileUI();
-            alert("Поздравляем! Приобретен статус ⭐ VIP.");
-        }
-
-        function adminChangeRole() {
-            const targetRole = document.getElementById('admin-role-select').value;
-            sendDataPacket({ type: 'role_force', newRole: targetRole });
-            appendMsg('Система', `Роль для ${activeChat.name} обновлена до [${targetRole}]`, 'sys-msg');
-        }
-
-        function addFriendHand() {
-            const name = document.getElementById('friend-name-input').value.trim();
-            const id = document.getElementById('friend-id-input').value.trim();
-            if(!name) return alert("Ник обязателен!");
-            let db = JSON.parse(localStorage.getItem('p2p_db_users')) || {};
-            if(!db[me.username].friends) db[me.username].friends = {};
-            db[me.username].friends[name] = id || 'Офлайн';
-            localStorage.setItem('p2p_db_users', JSON.stringify(db));
-            renderFriends();
-            document.getElementById('friend-name-input').value = '';
-            document.getElementById('friend-id-input').value = '';
-        }
-
-        function renderFriends() {
-            const list = document.getElementById('friends-list');
-            list.innerHTML = '';
-            let db = JSON.parse(localStorage.getItem('p2p_db_users')) || {};
-            let fList = db[me.username].friends || {};
-            for(let name in fList) {
-                let li = document.createElement('li');
-                li.innerHTML = `
-                    <div><strong>${name}</strong></div>
-                    <div style="display:flex; gap:10px; align-items:center;">
-                        <span class="code-display">${fList[name]}</span>
-                        <button class="btn" style="padding:4px 8px; font-size:12px;" onclick="document.getElementById('connect-id-input').value='${fList[name]}'; switchTab('tab-chats');">Вызвать</button>
-                    </div>
-                `;
-                list.appendChild(li);
-            }
-        }
-
-        function createGroup() {
-            const gName = document.getElementById('group-name-input').value.trim();
-            if(!gName) return alert("Введите имя группы!");
-            let groups = JSON.parse(localStorage.getItem('p2p_db_groups')) || {};
-            let gId = 'G_' + Math.random().toString(36).substr(2, 9);
-            groups[gId] = { name: gName, creator: me.username, hostPeerId: peer.id };
-            localStorage.setItem('p2p_db_groups', JSON.stringify(groups));
-            renderGroups();
-            document.getElementById('group-name-input').value = '';
-        }
-
-        function renderGroups() {
-            const list = document.getElementById('groups-list');
-            list.innerHTML = '';
-            let groups = JSON.parse(localStorage.getItem('p2p_db_groups')) || {};
-            for(let id in groups) {
-                let li = document.createElement('li');
-                li.innerHTML = `
-                    <div><strong>👥 ${groups[id].name}</strong></div>
-                    <div style="display:flex; gap:10px; align-items:center;">
-                        <span class="code-display">${groups[id].hostPeerId}</span>
-                        <button class="btn btn-green" style="padding:4px 8px; font-size:12px;" onclick="document.getElementById('connect-id-input').value='${groups[id].hostPeerId}'; switchTab('tab-chats');">Войти</button>
-                    </div>
-                `;
-                list.appendChild(li);
-            }
-        }
-
-        function switchTab(tabId) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            if(event && event.currentTarget) event.currentTarget.classList.add('active');
-        }
-
-        function appendMsg(sender, text, type, role = 'user') {
-            const box = document.getElementById('chat-messages');
-            if(!box) return;
-            const d = document.createElement('div');
-            d.className = `msg ${type}`;
-            if(!type.includes('sys-msg')) {
-                let rName = 'Юзер'; let rClass = 'p-user';
-                if(role === 'owner') { rName = 'Владелец'; rClass = 'p-owner'; }
-                if(role === 'admin') { rName = 'Админ'; rClass = 'p-admin'; }
-                if(role === 'vip') { rName = '⭐ VIP'; rClass = 'p-vip'; }
-                d.innerHTML = `<div class="msg-header"><span style="font-weight:bold;">${sender}</span><span class="badge ${rClass}">${rName}</span></div><div>${text}</div>`;
-            } else {
-                d.innerText = text;
-            }
-            box.appendChild(d);
-            box.scrollTop = box.scrollHeight;
-        }
-
-        function checkChatEnter(e) { if(e.key === 'Enter') sendChatMessage(); }
     </script>
 </body>
 </html>

@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced TG Messenger</title>
-    <!-- Подключаем Firebase SDK -->
+    <title>Telegram Pro Messenger</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
@@ -16,126 +15,147 @@
             --text-main: #f5f5f5;
             --text-muted: #7f91a4;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background: var(--bg-main); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
 
-        /* Окно авторизации (сделано как стандартная форма для сохранения паролей браузером) */
+        /* Окна авторизации и настроек */
         .auth-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-main); display: flex; justify-content: center; align-items: center; z-index: 100; }
-        .auth-form { background: var(--bg-dark); padding: 30px; border-radius: 10px; width: 100%; max-width: 360px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        .auth-form { background: var(--bg-dark); padding: 30px; border-radius: 12px; width: 100%; max-width: 360px; box-shadow: 0 5px 25px rgba(0,0,0,0.6); }
         .auth-form h2 { text-align: center; margin-bottom: 20px; color: var(--tg-theme); }
-        .auth-form input, .auth-form select { width: 100%; padding: 12px; margin-bottom: 15px; background: var(--bg-main); border: 1px solid #2f3844; border-radius: 6px; color: white; font-size: 16px; }
-        .auth-form button { width: 100%; padding: 12px; background: var(--tg-theme); border: none; border-radius: 6px; color: white; font-size: 16px; font-weight: bold; cursor: pointer; }
-        .auth-form .toggle-type { text-align: center; color: var(--text-muted); margin-top: 15px; cursor: pointer; font-size: 14px; }
+        .auth-form input, .auth-form select { width: 100%; padding: 12px; margin-bottom: 15px; background: var(--bg-main); border: 1px solid #2f3844; border-radius: 8px; color: white; font-size: 16px; outline: none; }
+        .auth-form button { width: 100%; padding: 12px; background: var(--tg-theme); border: none; border-radius: 8px; color: white; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .auth-form button.secondary { background: #313e4b; }
+        .auth-form .toggle-type { text-align: center; color: var(--text-muted); cursor: pointer; font-size: 14px; margin-top: 10px; }
 
-        /* Главный интерфейс а-ля Telegram */
-        .sidebar { width: 320px; background: var(--bg-dark); border-right: 1px solid #101921; display: flex; flex-direction: column; }
+        /* Интерфейс */
+        .sidebar { width: 325px; background: var(--bg-dark); border-right: 1px solid #101921; display: flex; flex-direction: column; }
         .sb-header { padding: 15px; border-bottom: 1px solid #101921; }
-        .search-bar { width: 100%; padding: 8px 12px; background: var(--bg-main); border: 1px solid #24303f; border-radius: 20px; color: white; outline: none; }
+        .search-bar { width: 100%; padding: 10px 15px; background: var(--bg-main); border: 1px solid #24303f; border-radius: 20px; color: white; outline: none; font-size: 14px; }
         
         .chat-list { flex: 1; overflow-y: auto; }
-        .chat-item { padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-bottom: 1px solid #101921; }
+        .chat-item { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; border-bottom: 1px solid #101921; transition: background 0.2s; }
         .chat-item:hover, .chat-item.active { background: var(--bg-active); }
+        .chat-item .title-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; }
+        .chat-item .status-row { font-size: 12px; color: var(--text-muted); }
         
         .main-chat { flex: 1; display: flex; flex-direction: column; background: #0e1621; }
         .chat-header { height: 60px; background: var(--bg-dark); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #101921; }
-        .chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-color: #0e1621; }
         
-        /* Стилизация сообщений по ролям и цветам */
-        .message { max-width: 65%; padding: 10px 14px; border-radius: 8px; position: relative; display: flex; flex-direction: column; }
-        .msg-meta { font-size: 11px; font-weight: bold; margin-bottom: 3px; display: flex; gap: 5px; align-items: center; }
-        .msg-text { word-break: break-word; font-size: 15px; }
+        /* Стилизация сообщений */
+        .message { max-width: 65%; padding: 10px 14px; border-radius: 12px; position: relative; display: flex; flex-direction: column; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .msg-meta { font-size: 12px; font-weight: bold; margin-bottom: 4px; display: flex; gap: 6px; align-items: center; }
+        .msg-text { word-break: break-word; font-size: 15px; color: #fff; }
         .fwd-label { font-size: 11px; color: var(--text-muted); font-style: italic; margin-bottom: 2px; }
 
-        /* Цвета ролей */
-        .role-owner { color: #ffd700 !important; } /* Владелец - золотой */
-        .role-admin { color: #ff4d4d !important; } /* Админ - красный */
-        .role-premium { color: #b388ff !important; } /* Премиум - фиолетовый */
-        .role-vip-blue { color: #33b5e5 !important; } /* VIP синий */
-        .role-vip-green { color: #00c851 !important; } /* VIP зеленый */
+        /* Кастомные цвета ников по выбору */
+        .c-blue { color: #33b5e5 !important; }
+        .c-green { color: #00c851 !important; }
+        .c-purple { color: #aa66cc !important; }
+        .c-pink { color: #ff4081 !important; }
+        .c-orange { color: #ffbb33 !important; }
+        .c-cyan { color: #00e5ff !important; }
+        /* Системные цвета ролей */
+        .role-owner { color: #ffd700 !important; animation: pulse 2s infinite; }
+        .role-admin { color: #ff4d4d !important; }
         .role-user { color: #aab8c2 !important; }
 
-        .m-incoming { background: #182533; align-self: flex-start; }
-        .m-outgoing { background: #2b5278; align-self: flex-end; }
+        .m-incoming { background: #182533; align-self: flex-start; border-bottom-left-radius: 2px; }
+        .m-outgoing { background: #2b5278; align-self: flex-end; border-bottom-right-radius: 2px; }
 
-        .chat-input-area { padding: 15px; background: var(--bg-dark); display: flex; gap: 10px; }
-        .chat-input-area input { flex: 1; padding: 12px; background: var(--bg-main); border: 1px solid #24303f; border-radius: 8px; color: white; outline: none; }
-        .chat-input-area button { padding: 0 20px; background: var(--tg-theme); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; }
+        .chat-input-area { padding: 15px; background: var(--bg-dark); display: flex; gap: 10px; border-top: 1px solid #101921; }
+        .chat-input-area input { flex: 1; padding: 12px 18px; background: var(--bg-main); border: 1px solid #24303f; border-radius: 24px; color: white; outline: none; font-size: 15px; }
+        .chat-input-area button { padding: 0 22px; background: var(--tg-theme); border: none; border-radius: 24px; color: white; font-weight: bold; cursor: pointer; font-size: 15px; }
 
-        /* Панель управления Владельца / Админа */
-        .admin-panel { background: #202b36; padding: 10px; display: flex; gap: 10px; align-items: center; justify-content: space-around; font-size: 13px; }
-        .btn-action { padding: 4px 10px; background: #c62828; border: none; border-radius: 4px; color: white; cursor: pointer; }
+        .admin-panel { background: #1e2c3a; padding: 10px 20px; display: flex; gap: 15px; align-items: center; justify-content: flex-start; font-size: 13px; border-bottom: 1px solid #101921; }
+        .btn-action { padding: 6px 12px; background: #c62828; border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: bold; }
+        .btn-menu { padding: 6px 10px; background: #2f3c4c; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 12px; }
 
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-    <!-- ЭКРАН ВХОДА / РЕГИСТРАЦИИ -->
     <div id="auth-screen" class="auth-overlay">
-        <!-- autocomplete="on" заставляет браузер предлагать сохранение пароля -->
         <form class="auth-form" id="main-auth-form" autocomplete="on" onsubmit="handleAuth(event)">
             <h2 id="auth-title">Войти в Telegram</h2>
             
             <input type="text" id="auth-username" name="username" placeholder="Имя пользователя (Никнейм)" required autocomplete="username">
             <input type="password" id="auth-password" name="password" placeholder="Пароль" required autocomplete="current-password">
-            
-            <!-- Поля, видимые только при регистрации -->
-            <div id="reg-fields" class="hidden">
-                <label style="font-size:12px; color:var(--text-muted)">Роль (для теста лимитов):</label>
-                <select id="auth-role" onchange="toggleVipColors()">
-                    <option value="user">Обычный юзер (Лимит: 1 акк на IP)</option>
-                    <option value="vip">VIP роль (Лимит: 3 акка на IP)</option>
-                    <option value="premium">Premium роль</option>
-                </select>
-                
-                <div id="vip-color-selector" class="hidden">
-                    <label style="font-size:12px; color:var(--text-muted)">Цвет вашего ника (Только для VIP):</label>
-                    <select id="auth-vip-color">
-                        <option value="blue">Синий цвет</option>
-                        <option value="green">Зеленый цвет</option>
-                    </select>
-                </div>
-            </div>
 
             <button type="submit" id="auth-btn">Войти</button>
             <div class="toggle-type" id="auth-toggle" onclick="toggleAuthMode()">Нет аккаунта? Зарегистрироваться</div>
         </form>
     </div>
 
-    <!-- ЛЕВАЯ ПАНЕЛЬ (СПИСОК ГРУПП И ПОИСК ИГРОКОВ) -->
-    <div class="sidebar">
-        <div class="sb-header">
-            <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px;">
-                <span id="my-profile-name">Загрузка...</span>
-                <span style="color:var(--text-muted); cursor:pointer;" onclick="logout()">Выйти ➔</span>
+    <div id="settings-screen" class="auth-overlay hidden">
+        <div class="auth-form">
+            <h2>⚙️ Настройки цвета</h2>
+            <div id="vip-settings-content">
+                <p style="margin-bottom: 10px; font-size: 14px; color: var(--text-muted);">Доступно только для владельцев VIP и Premium подписок:</p>
+                <select id="settings-color-choice">
+                    <option value="blue">Стандартный синий</option>
+                    <option value="green">Зеленый лист</option>
+                    <option value="purple">Аметист (Фиолетовый)</option>
+                    <option value="pink">Неоновый розовый</option>
+                    <option value="orange">Огненный оранжевый</option>
+                    <option value="cyan">Бирюзовый лед</option>
+                </select>
+                <button onclick="saveProfileSettings()">Сохранить настройки</button>
             </div>
-            <input type="text" class="search-bar" id="search-input" placeholder="Поиск игрока или группы..." oninput="filterList()">
-            <button onclick="createNewGroup()" style="width:100%; margin-top:8px; padding:6px; background:#2b5278; border:none; border-radius:4px; color:white; font-size:12px; cursor:pointer;">+ Создать группу/канал</button>
-        </div>
-        <div class="chat-list" id="chat-list-container">
-            <!-- Сюда рендерятся комнаты и игроки -->
+            <button class="secondary" onclick="document.getElementById('settings-screen').classList.add('hidden')">Закрыть</button>
         </div>
     </div>
 
-    <!-- ОСНОВНОЙ ЭКРАН ЧАТА -->
+    <div id="subaccount-screen" class="auth-overlay hidden">
+        <form class="auth-form" onsubmit="handleCreateSubAccount(event)">
+            <h2>➕ Новый аккаунт</h2>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Создание связанного профиля. Он автоматически получит ваш текущий IP-адрес.</p>
+            <input type="text" id="sub-username" placeholder="Никнейм нового аккаунта" required>
+            <input type="password" id="sub-password" placeholder="Пароль" required>
+            <button type="submit">Создать и переключиться</button>
+            <button type="button" class="secondary" onclick="document.getElementById('subaccount-screen').classList.add('hidden')">Отмена</button>
+        </form>
+    </div>
+
+    <div class="sidebar">
+        <div class="sb-header">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <div>
+                    <span id="my-profile-name" style="font-weight: bold; color: var(--tg-theme);">...</span>
+                    <div id="my-profile-role" style="font-size: 11px; color: var(--text-muted);">Роль: USER</div>
+                </div>
+                <span style="color:#ef5350; cursor:pointer; font-size: 13px; font-weight: bold;" onclick="logout()">Выйти ➔</span>
+            </div>
+            
+            <div style="display:flex; gap:5px; margin-bottom: 10px;">
+                <button class="btn-menu" onclick="document.getElementById('settings-screen').classList.remove('hidden')">⚙️ Цвет</button>
+                <button class="btn-menu id="subacc-btn" onclick="openSubAccountMenu()">➕ Доп. аккаунт</button>
+            </div>
+
+            <input type="text" class="search-bar" id="search-input" placeholder="Поиск людей или групп..." oninput="handleSearch()">
+            <button onclick="createNewGroup()" style="width:100%; margin-top:8px; padding:8px; background:#2b5278; border:none; border-radius:6px; color:white; font-size:13px; font-weight:bold; cursor:pointer;">+ Создать группу</button>
+        </div>
+        
+        <div class="chat-list" id="chat-list-container">
+            </div>
+    </div>
+
     <div class="main-chat">
-        <!-- Панель Администратора / Владельца -->
         <div id="admin-bar" class="admin-panel hidden">
-            <span>👑 Панель управления:</span>
-            <button class="btn-action" onclick="adminCreateAccount()">Создать аккаунт админу</button>
-            <button class="btn-action" style="background:#1565c0" onclick="adminGiveRole()">Выдать VIP/Админку</button>
+            <span>👑 Модерация:</span>
+            <button class="btn-action" style="background:#1565c0" onclick="adminGiveRole()">Выдать донат роль / статус</button>
         </div>
 
         <div class="chat-header">
             <div>
-                <h3 id="current-chat-title">Выберите чат</h3>
-                <span id="current-chat-status" style="font-size:12px; color:var(--text-muted)"></span>
+                <h3 id="current-chat-title">🌍 Общий чат</h3>
+                <span id="current-chat-status" style="font-size:12px; color:var(--text-muted)">Все участники</span>
             </div>
         </div>
 
         <div class="chat-messages" id="chat-messages-container">
-            <!-- Сообщения -->
-        </div>
+            </div>
 
         <div class="chat-input-area">
             <input type="text" id="chat-message-input" placeholder="Напишите сообщение..." onkeypress="if(event.key==='Enter') sendChatMessage()">
@@ -144,7 +164,7 @@
     </div>
 
     <script>
-        // !!! ВСТАВЬТЕ СЮДА ВАШИ ДАННЫЕ ИЗ КОНСОЛИ FIREBASE !!!
+        // !!! КОНФИГУРАЦИЯ FIREBASE !!!
         const firebaseConfig = {
             apiKey: "AIzaSyYourActualApiKeyHere",
             authDomain: "your-app.firebaseapp.com",
@@ -155,7 +175,6 @@
             appId: "1:12345:web:12345"
         };
         
-        // Инициализация
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
@@ -164,41 +183,35 @@
         let currentChatId = "global_room";
         let userIp = "127.0.0.1";
 
-        // Получаем IP пользователя при загрузке страницы
+        // Загрузка IP адреса пользователя
         fetch('https://api.ipify.org?format=json')
             .then(res => res.json())
             .then(data => userIp = data.ip)
             .catch(() => userIp = "127.0.0.1");
 
-        // Вшитый аккаунт владельца
+        // Главные данные владельца
         const OWNER_NICK = "неон";
         const OWNER_PASS = "qwsder";
 
         function toggleAuthMode() {
             isLoginMode = !isLoginMode;
-            document.getElementById('auth-title').innerText = isLoginMode ? "Войти в Telegram" : "Регистрация";
-            document.getElementById('auth-btn').innerText = isLoginMode ? "Войти" : "Создать аккаунт";
+            document.getElementById('auth-title').innerText = isLoginMode ? "Войти в Telegram" : "Регистрация аккаунта";
+            document.getElementById('auth-btn').innerText = isLoginMode ? "Войти" : "Зарегистрироваться";
             document.getElementById('auth-toggle').innerText = isLoginMode ? "Нет аккаунта? Зарегистрироваться" : "Уже есть аккаунт? Войти";
-            document.getElementById('reg-fields').classList.toggle('hidden', isLoginMode);
         }
 
-        function toggleVipColors() {
-            const role = document.getElementById('auth-role').value;
-            document.getElementById('vip-color-selector').classList.toggle('hidden', role !== 'vip');
-        }
-
-        // Авторизация и Логика Лимитов по IP
+        // Авторизация
         function handleAuth(e) {
             e.preventDefault();
             const username = document.getElementById('auth-username').value.trim();
             const password = document.getElementById('auth-password').value.trim();
             
-            if (!username || !password) return alert("Заполните поля!");
+            if (!username || !password) return alert("Заполните все поля формы!");
 
             if (isLoginMode) {
-                // Проверка входа (включая владельца)
+                // Вход
                 if (username === OWNER_NICK && password === OWNER_PASS) {
-                    initUser({ username: OWNER_NICK, role: 'owner', vipColor: 'gold' });
+                    initUser({ username: OWNER_NICK, role: 'owner', vipColor: 'purple', ip: userIp });
                     return;
                 }
 
@@ -207,117 +220,186 @@
                     if (user && user.password === password) {
                         initUser(user);
                     } else {
-                        alert("Неверный никнейм или пароль!");
+                        alert("Неверное имя пользователя или пароль!");
                     }
                 });
             } else {
-                // Регистрация нового аккаунта
-                if (username === OWNER_NICK) return alert("Этот ник зарезервирован владельцем!");
+                // Чистая Регистрация (Ролей нет, по умолчанию обычный user)
+                if (username === OWNER_NICK) return alert("Этот ник занят!");
 
-                const selectedRole = document.getElementById('auth-role').value;
-                const vipColor = selectedRole === 'vip' ? document.getElementById('auth-vip-color').value : 'none';
+                db.ref('users/' + username).once('value', (snapshot) => {
+                    if (snapshot.exists()) return alert("Пользователь с таким ником уже существует!");
 
-                // Сканируем базу данных на лимиты аккаунтов по текущему IP
-                db.ref('users').once('value', (snapshot) => {
+                    db.ref('users').once('value', (ipSnapshot) => {
+                        let ipCount = 0;
+                        ipSnapshot.forEach((child) => {
+                            if (child.val().ip === userIp) ipCount++;
+                        });
+
+                        // Лимит при первой регистрации — 1 аккаунт на IP
+                        if (ipCount >= 1) {
+                            alert("На ваш IP-адрес уже зарегистрирован аккаунт! Новые профили могут создавать только VIP / Premium пользователи из меню.");
+                            return;
+                        }
+
+                        const newUser = { username, password, role: 'user', vipColor: 'blue', ip: userIp, status: 'online' };
+                        db.ref('users/' + username).set(newUser, (err) => {
+                            if (!err) {
+                                alert("Регистрация успешна! У вас базовая роль [USER].");
+                                initUser(newUser);
+                            }
+                        });
+                    });
+                });
+            }
+        }
+
+        // Инициализация интерфейса под юзера
+        function initUser(user) {
+            currentUser = user;
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('my-profile-name').innerText = user.username;
+            document.getElementById('my-profile-role').innerText = `Роль: ${user.role.toUpperCase()}`;
+            
+            if (user.role === 'owner' || user.role === 'admin') {
+                document.getElementById('admin-bar').classList.remove('hidden');
+            } else {
+                document.getElementById('admin-bar').classList.add('hidden');
+            }
+
+            db.ref('users/' + user.username + '/status').set('в сети');
+            loadChatList();
+            listenToChat(currentChatId);
+        }
+
+        // Функция открытия меню создания аккаунтов (Без выхода)
+        function openSubAccountMenu() {
+            if (currentUser.role === 'user') {
+                alert("Функция создания доп. аккаунтов заблокирована! Получите или купите роль VIP, Premium или Admin.");
+                return;
+            }
+            document.getElementById('subaccount-screen').classList.remove('hidden');
+        }
+
+        // Логика создания связанного аккаунта для донатеров
+        function handleCreateSubAccount(e) {
+            e.preventDefault();
+            const username = document.getElementById('sub-username').value.trim();
+            const password = document.getElementById('sub-password').value.trim();
+
+            db.ref('users/' + username).once('value', (snapshot) => {
+                if (snapshot.exists()) return alert("Этот ник уже занят!");
+
+                db.ref('users').once('value', (ipSnapshot) => {
                     let ipCount = 0;
-                    snapshot.forEach((child) => {
+                    ipSnapshot.forEach((child) => {
                         if (child.val().ip === userIp) ipCount++;
                     });
 
-                    // Проверка жестких правил лимитов
-                    let maxAllowed = 1; // Обычный юзер
-                    if (selectedRole === 'vip') maxAllowed = 3;
-                    if (selectedRole === 'premium') maxAllowed = 5;
+                    // Проверка лимитов на доп. аккаунты
+                    let maxAllowed = 1;
+                    if (currentUser.role === 'vip') maxAllowed = 3;
+                    if (currentUser.role === 'premium') maxAllowed = 5;
+                    if (currentUser.role === 'admin' || currentUser.role === 'owner') maxAllowed = 999;
 
                     if (ipCount >= maxAllowed) {
-                        alert(`Превышен лимит аккаунтов для вашего IP! Для вашей роли доступно максимум: ${maxAllowed}`);
+                        alert(`Ошибка лимита! С вашим статусом [${currentUser.role.toUpperCase()}] можно иметь всего аккаунтов на одном IP: ${maxAllowed}`);
                         return;
                     }
 
-                    // Сохраняем аккаунт в базу данных
-                    const newUser = { username, password, role: selectedRole, vipColor, ip: userIp, status: "online" };
-                    db.ref('users/' + username).set(newUser, (err) => {
+                    // Создаем новый чистый аккаунт без переноса роли, но под тем же IP
+                    const subUser = { username, password, role: 'user', vipColor: 'blue', ip: userIp, status: 'online' };
+                    db.ref('users/' + username).set(subUser, (err) => {
                         if (!err) {
-                            alert("Регистрация успешна!");
-                            initUser(newUser);
+                            alert(`Дополнительный аккаунт ${username} успешно создан! Вы переключены на него.`);
+                            document.getElementById('subaccount-screen').classList.add('hidden');
+                            initUser(subUser);
+                        }
+                    });
+                });
+            });
+        }
+
+        // Сохранение цвета ника в настройках
+        function saveProfileSettings() {
+            if (currentUser.role === 'user') {
+                alert("Изменение цвета доступно только для пользователей со статусом VIP или Premium!");
+                return;
+            }
+            const selectedColor = document.getElementById('settings-color-choice').value;
+            db.ref('users/' + currentUser.username + '/vipColor').set(selectedColor);
+            currentUser.vipColor = selectedColor;
+            alert("Цвет вашего имени успешно изменен в базе данных!");
+            document.getElementById('settings-screen').classList.add('hidden');
+        }
+
+        // Поиск игроков и отображение комнат в Telegram стиле
+        function handleSearch() {
+            const query = document.getElementById('search-input').value.trim().toLowerCase();
+            const container = document.getElementById('chat-list-container');
+            
+            if (query.length === 0) {
+                loadChatList();
+                return;
+            }
+
+            if (query.length >= 2) {
+                db.ref('users').orderByKey().startAt(query).endAt(query + "\uf8ff").once('value', (snapshot) => {
+                    container.innerHTML = `<div style="padding:10px; font-size:12px; color:var(--text-muted)">РЕЗУЛЬТАТЫ ПОИСКА ИГРОКОВ:</div>`;
+                    snapshot.forEach((child) => {
+                        if (child.key !== currentUser.username) {
+                            container.innerHTML += `
+                                <div class="chat-item" style="border-left: 3px solid var(--tg-theme);" onclick="switchChat('${child.key}', 'ЛС: ${child.key}', 'Личный чат')">
+                                    <div class="title-row"><span>👤 ${child.key}</span></div>
+                                    <div class="status-row">Статус: ${child.val().role.toUpperCase()} (${child.val().status})</div>
+                                </div>`;
                         }
                     });
                 });
             }
         }
 
-        function initUser(user) {
-            currentUser = user;
-            document.getElementById('auth-screen').classList.add('hidden');
-            document.getElementById('my-profile-name').innerText = `${user.username} (${user.role.toUpperCase()})`;
-            
-            // Если зашел владелец или админ — показываем скрытую панель управления
-            if (user.role === 'owner' || user.role === 'admin') {
-                document.getElementById('admin-bar').classList.remove('hidden');
-            }
-
-            // Ставим статус "В сети"
-            if (user.username !== OWNER_NICK) {
-                db.ref('users/' + user.username + '/status').set('online');
-            }
-
-            loadChatList();
-            listenToChat(currentChatId);
-        }
-
-        function logout() {
-            if (currentUser && currentUser.username !== OWNER_NICK) {
-                db.ref('users/' + currentUser.username + '/status').set('был в сети недавно');
-            }
-            location.reload();
-        }
-
-        // Загрузка комнат и Поиск игроков
         function loadChatList() {
             db.ref('channels').on('value', (snapshot) => {
                 const container = document.getElementById('chat-list-container');
-                container.innerHTML = `<div class="chat-item active" onclick="switchChat('global_room', 'Общий чат')">🌍 Общий чат</div>`;
+                container.innerHTML = `
+                    <div class="chat-item active" id="item-global_room" onclick="switchChat('global_room', '🌍 Общий чат', 'Все участники')">
+                        <div class="title-row"><span>🌍 Общий чат</span></div>
+                        <div class="status-row">Основная комната для общения</div>
+                    </div>`;
                 
                 snapshot.forEach((child) => {
                     const room = child.val();
-                    container.innerHTML += `<div class="chat-item" onclick="switchChat('${child.key}', '${room.name}')">💬 ${room.name}</div>`;
+                    container.innerHTML += `
+                        <div class="chat-item" id="item-${child.key}" onclick="switchChat('${child.key}', '💬 ${room.name}', 'Группа')">
+                            <div class="title-row"><span>💬 ${room.name}</span></div>
+                            <div class="status-row">Создатель: ${room.creator}</div>
+                        </div>`;
                 });
             });
         }
 
         function createNewGroup() {
-            const name = prompt("Введите название новой группы/канала:");
+            const name = prompt("Введите название новой группы:");
             if (!name) return;
             const roomId = 'room_' + Date.now();
             db.ref('channels/' + roomId).set({ name: name, creator: currentUser.username });
         }
 
-        // Поиск игроков и фильтрация списка (из ТГ)
-        function filterList() {
-            const query = document.getElementById('search-input').value.trim().toLowerCase();
-            if (query.length > 2) {
-                // Ищем игроков прямо в базе данных
-                db.ref('users').orderByKey().startAt(query).endAt(query + "\uf8ff").once('value', (snapshot) => {
-                    const container = document.getElementById('chat-list-container');
-                    snapshot.forEach((child) => {
-                        if (child.key !== currentUser.username) {
-                            container.innerHTML += `<div class="chat-item" style="border-left: 2px solid #4caf50;" onclick="switchChat('${child.key}', 'ЛС: ${child.key}')">👤 ${child.key} (${child.val().status})</div>`;
-                        }
-                    });
-                });
-            }
-        }
-
-        function switchChat(id, title) {
+        function switchChat(id, title, statusText) {
+            document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
             currentChatId = id;
             document.getElementById('current-chat-title').innerText = title;
+            document.getElementById('current-chat-status').innerText = statusText;
+            const activeItem = document.getElementById(`item-${id}`);
+            if (activeItem) activeItem.classList.add('active');
             listenToChat(id);
         }
 
-        // Чтение и отправка сообщений с кастомизацией
+        // Получение и отображение сообщений с классами цветов
         function listenToChat(id) {
             db.ref('messages/' + id).off();
-            db.ref('messages/' + id).limitToLast(50).on('value', (snapshot) => {
+            db.ref('messages/' + id).limitToLast(40).on('value', (snapshot) => {
                 const container = document.getElementById('chat-messages-container');
                 container.innerHTML = '';
                 
@@ -325,24 +407,24 @@
                     const msg = child.val();
                     const isMe = msg.sender === currentUser.username;
                     
-                    let roleClass = 'role-user';
-                    if (msg.role === 'owner') roleClass = 'role-owner';
-                    else if (msg.role === 'admin') roleClass = 'role-admin';
-                    else if (msg.role === 'premium') roleClass = 'role-premium';
-                    else if (msg.role === 'vip') {
-                        roleClass = msg.vipColor === 'green' ? 'role-vip-green' : 'role-vip-blue';
+                    let colorClass = 'c-blue';
+                    if (msg.role === 'owner') colorClass = 'role-owner';
+                    else if (msg.role === 'admin') colorClass = 'role-admin';
+                    else if (msg.role === 'vip' || msg.role === 'premium') {
+                        colorClass = `c-${msg.vipColor}`;
+                    } else {
+                        colorClass = 'role-user';
                     }
 
                     container.innerHTML += `
                         <div class="message ${isMe ? 'm-outgoing' : 'm-incoming'}" oncontextmenu="event.preventDefault(); forwardMessage('${msg.text}', '${msg.sender}')">
                             ${msg.isForwarded ? `<div class="fwd-label">Переслано от ${msg.fwdFrom}</div>` : ''}
-                            <div class="msg-meta ${roleClass}">
-                                <span>${msg.sender}</span> 
-                                <span style="font-size:9px; color:gray;">[${msg.role.toUpperCase()}]</span>
+                            <div class="msg-meta ${colorClass}">
+                                <span>${msg.sender}</span>
+                                <span style="font-size:9px; opacity:0.6;">[${msg.role.toUpperCase()}]</span>
                             </div>
                             <div class="msg-text">${msg.text}</div>
-                        </div>
-                    `;
+                        </div>`;
                 });
                 container.scrollTop = container.scrollHeight;
             });
@@ -356,10 +438,10 @@
             const msgData = {
                 sender: currentUser.username,
                 role: currentUser.role,
-                vipColor: currentUser.vipColor || 'none',
+                vipColor: currentUser.vipColor || 'blue',
                 text: text,
                 timestamp: Date.now(),
-                isForwarded: fwdText ? true : false,
+                isForwarded: !!fwdText,
                 fwdFrom: fwdFrom || ''
             };
 
@@ -367,44 +449,34 @@
             if (!fwdText) input.value = '';
         }
 
-        // Контекстная функция Telegram: Переслать сообщение (Вызывается по правому клику мыши на сообщение)
         function forwardMessage(text, from) {
-            const target = prompt("Введите имя комнаты или ник игрока, куда переслать сообщение:");
+            const target = prompt("Куда переслать? Введите 'global_room' или ID комнаты / Никнейм человека:");
             if (target) {
                 const oldChat = currentChatId;
                 currentChatId = target;
                 sendChatMessage(text, from);
                 currentChatId = oldChat;
-                alert("Сообщение переслано!");
+                alert("Сообщение успешно переслано!");
             }
         }
 
-        // АДМИН-ФУНКЦИИ (Доступны только "неон" и назначенным админам)
-        function adminCreateAccount() {
-            if (currentUser.role !== 'owner' && currentUser.role !== 'admin') return alert("Нет прав!");
-            const targetNick = prompt("Введите ник нового админа:");
-            const targetPass = prompt("Введите пароль для админа:");
-            if (!targetNick || !targetPass) return;
-
-            db.ref('users/' + targetNick).set({
-                username: targetNick,
-                password: targetPass,
-                role: 'admin',
-                vipColor: 'none',
-                ip: 'создан_админом',
-                status: 'offline'
-            });
-            alert(`Аккаунт админа ${targetNick} успешно создан!`);
+        function logout() {
+            if (currentUser && currentUser.username !== OWNER_NICK) {
+                db.ref('users/' + currentUser.username + '/status').set('был(а) в сети недавно');
+            }
+            location.reload();
         }
 
+        // АДМИНКА (Выдача ролей прямо в чате)
         function adminGiveRole() {
-            if (currentUser.role !== 'owner' && currentUser.role !== 'admin') return alert("Нет прав!");
-            const targetNick = prompt("Введите ник игрока:");
-            const newRole = prompt("Какую роль выдать? (vip / premium / admin):");
+            if (currentUser.role !== 'owner' && currentUser.role !== 'admin') return alert("Отказано в доступе!");
+            const targetNick = prompt("Укажите никнейм игрока для изменения:");
+            const newRole = prompt("Какую роль/статус выдать? (user / vip / premium / admin):");
             if (!targetNick || !newRole) return;
 
-            db.ref('users/' + targetNick + '/role').set(newRole);
-            alert(`Роль игрока ${targetNick} изменена на ${newRole}!`);
+            db.ref('users/' + targetNick + '/role').set(newRole.toLowerCase(), (err) => {
+                if (!err) alert(`Права пользователя ${targetNick} изменены на [${newRole.toUpperCase()}]`);
+            });
         }
     </script>
 </body>

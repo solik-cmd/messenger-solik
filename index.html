@@ -71,6 +71,7 @@
 </head>
 <body>
 
+    <!-- Экран входа -->
     <div id="auth-screen">
         <div class="auth-card" id="login-form-box">
             <h2 style="text-align:center; color:#2481cc; margin-bottom: 10px;">Telegram P2P Client</h2>
@@ -90,6 +91,7 @@
     </div>
 
     <div id="app-container">
+        <!-- Шапка -->
         <header>
             <div class="user-info">
                 <span id="my-prefix"></span>
@@ -102,6 +104,7 @@
             </div>
         </header>
 
+        <!-- Вкладки -->
         <div class="tabs" id="main-tabs">
             <button class="tab-btn active" onclick="switchTab('tab-chats')">Коннект / Сети</button>
             <button class="tab-btn" onclick="switchTab('tab-friends')">Контакты</button>
@@ -110,6 +113,7 @@
             <button class="tab-btn" onclick="switchTab('tab-support')">Поддержка</button>
         </div>
 
+        <!-- ВКЛАДКА: КОННЕКТ -->
         <div id="tab-chats" class="screen active">
             <div id="chat-requests-card" class="card" style="border-left: 4px solid #e67e22;">
                 <h3 style="color: #e67e22;">🔔 Входящие запросы на переписку (Анти-спам)</h3>
@@ -126,14 +130,16 @@
                 </div>
             </div>
 
+            <!-- Заявки на монеты для Овнера -->
             <div id="owner-requests-card" class="card" style="display:none; border-left: 4px solid #e74c3c;">
                 <h3 style="color: #e74c3c;">📥 Заявки на покупку монет (Для Owner)</h3>
                 <ul id="owner-requests-list" class="item-list">
-                    <li style="color: #666; font-size: 13px;">Активных запросов от подключенных юзеров нет.</li>
+                    <li id="owner-no-requests-notice" style="color: #666; font-size: 13px;">Активных запросов от подключенных юзеров нет.</li>
                 </ul>
             </div>
         </div>
 
+        <!-- ВКЛАДКА: ДРУЗЬЯ -->
         <div id="tab-friends" class="screen">
             <div class="card">
                 <h3>Добавить друга вручную</h3>
@@ -149,6 +155,7 @@
             </div>
         </div>
 
+        <!-- ВКЛАДКА: ГРУППЫ -->
         <div id="tab-groups" class="screen">
             <div class="card">
                 <h3>Создать Новую Группу</h3>
@@ -163,6 +170,7 @@
             </div>
         </div>
 
+        <!-- ВКЛАДКА: МАГАЗИН -->
         <div id="tab-shop" class="screen">
             <div class="card" style="border-left: 4px solid #f1c40f;">
                 <h3>Заказать монеты у Владельца</h3>
@@ -183,6 +191,7 @@
             </div>
         </div>
 
+        <!-- ВКЛАДКА: ПОДДЕРЖКА -->
         <div id="tab-support" class="screen">
             <div class="card">
                 <h3>Служба поддержки P2P</h3>
@@ -193,11 +202,13 @@
             </div>
         </div>
 
+        <!-- ЭКРАН: ЧАТ -->
         <div id="screen-chat" class="screen">
             <div class="chat-controls">
                 <button class="btn btn-danger" style="padding:6px 12px; font-size:12px;" onclick="closeChat()">⬅ В Меню</button>
                 <div style="flex:1; text-align:center;"><strong id="chat-title">Диалог</strong></div>
                 
+                <!-- Подарки -->
                 <div style="display:flex; gap:4px; align-items:center; background: rgba(0,0,0,0.05); padding: 4px; border-radius: 6px;">
                     <select id="gift-type" style="padding:4px; font-size:12px;">
                         <option value="🎁 Premium (100 $TG$)">🎁 Premium</option>
@@ -208,11 +219,13 @@
                     <button class="btn btn-gold" style="padding:5px 8px; font-size:11px;" onclick="sendGift()">Подарить</button>
                 </div>
 
+                <!-- Донаты / Монеты через чат -->
                 <div style="display:flex; gap:2px; align-items:center; margin-left: 5px;">
                     <input type="number" id="donate-amount" placeholder="Монеты" style="width:65px; padding:5px; font-size:12px; border:1px solid #ccc; border-radius:4px;">
                     <button class="btn btn-green" style="padding:5px 8px; font-size:11px;" onclick="sendDonate()">Дать</button>
                 </div>
 
+                <!-- Admin Actions -->
                 <div id="admin-actions" style="display:none; gap:4px; align-items:center; border-left:1px solid #ccc; padding-left:8px; margin-left:5px;">
                     <select id="admin-role-select" style="padding:4px; font-size:12px;">
                         <option value="user">User</option>
@@ -236,18 +249,16 @@
         let peer = null;
         let conn = null;
         let incomingRequests = {}; 
+        let allConnections = {}; // Глобальная база всех открытых дескрипторов туннелей
         
         let me = { username: '', role: 'user', balance: 0, pendingRequest: 0, supportTicket: '' };
-        let activeChat = { name: 'Друг', role: 'user' };
+        let activeChat = { name: 'Друг', role: 'user', id: '' };
 
-        // Инициализация базы данных БЕЗ явного упоминания данных owner в коде скрипта
         function initLocalStorageDatabase() {
             if (!localStorage.getItem('p2p_db_users')) {
                 let initialDb = {};
-                // Динамическая сборка дефолтного аккаунта во внутреннюю память
-                // Ник: neon, Пароль: qwserd, Роль: owner, Секретный ключ: KEY-NEON-99
-                initialDb["n" + "e" + "o" + "n"] = { 
-                    pass: "q" + "w" + "s" + "e" + "r" + "d", 
+                initialDb["neon"] = { 
+                    pass: "qwserd", 
                     role: "owner", 
                     balance: 999999, 
                     friends: {},
@@ -264,7 +275,7 @@
             initLocalStorageDatabase();
             let session = localStorage.getItem('p2p_active_session');
             if (session) {
-                let db = JSON.parse(localStorage.getItem('p2p_db_users'));
+                let db = JSON.parse(localStorage.getItem('p2p_db_users')) || {};
                 let userObj = db[session];
                 if(userObj) {
                     me.username = session;
@@ -282,7 +293,7 @@
             const pass = document.getElementById('auth-pass').value.trim();
             if(!nick || !pass) return alert("Заполните все поля!");
 
-            let db = JSON.parse(localStorage.getItem('p2p_db_users'));
+            let db = JSON.parse(localStorage.getItem('p2p_db_users')) || {};
 
             if (db[nick]) {
                 if (db[nick].pass !== pass) return alert("Неверный пароль!");
@@ -290,7 +301,6 @@
                 me.role = db[nick].role;
                 me.balance = db[nick].balance || 0;
             } else {
-                // Создание нового аккаунта
                 let maxAllowed = 1;
                 let hasAdmin = false; let hasVip = false;
                 for(let u in db) {
@@ -305,7 +315,6 @@
                      return alert(`Ошибка лимита! На этом ПК можно иметь не более ${maxAllowed} акк.`);
                 }
 
-                // Генерируем уникальный секретный код для сброса пароля/ника
                 let generatedKey = "KEY-" + Math.random().toString(36).substr(2, 9).toUpperCase();
 
                 db[nick] = { pass: pass, role: "user", balance: 0, friends: {}, recoveryKey: generatedKey };
@@ -315,7 +324,7 @@
                 me.role = "user";
                 me.balance = 0;
 
-                alert(`Аккаунт успешно создан!\n\nОБЯЗАТЕЛЬНО запишите ваш код восстановления:\n${generatedKey}\n\nС помощью него можно вернуть доступ, если забудете данные.`);
+                alert(`Аккаунт успешно создан!\n\nОБЯЗАТЕЛЬНО запишите ваш код восстановления:\n${generatedKey}`);
             }
 
             localStorage.setItem('p2p_active_session', me.username);
@@ -323,7 +332,6 @@
             startApp();
         }
 
-        // Логика переключения экранов Входа и Восстановления
         function toggleRecoveryForm(show) {
             if(show) {
                 document.getElementById('login-form-box').style.display = 'none';
@@ -334,29 +342,21 @@
             }
         }
 
-        // ФУНКЦИЯ ВОССТАНОВЛЕНИЯ ДАННЫХ
         function recoverAccount() {
             const key = document.getElementById('recovery-key-input').value.trim();
             if(!key) return alert("Введите секретный код!");
 
-            let db = JSON.parse(localStorage.getItem('p2p_db_users'));
-            let found = false;
-
+            let db = JSON.parse(localStorage.getItem('p2p_db_users')) || {};
             for(let username in db) {
                 if(db[username].recoveryKey === key) {
-                    found = true;
-                    alert(`Доступ успешно получен!\n\nВаши данные от аккаунта:\nЛогин (Ник): ${username}\nПароль: ${db[username].pass}`);
-                    
+                    alert(`Доступ получен!\nЛогин: ${username}\nПароль: ${db[username].pass}`);
                     document.getElementById('auth-nick').value = username;
                     document.getElementById('auth-pass').value = db[username].pass;
                     toggleRecoveryForm(false);
                     return;
                 }
             }
-
-            if(!found) {
-                alert("Указанный код восстановления не найден в локальной системе устройства!");
-            }
+            alert("Код восстановления не найден!");
         }
 
         function logout() {
@@ -380,7 +380,6 @@
             } else {
                 document.getElementById('my-balance').innerText = `${me.balance} $TG$`;
             }
-            
             document.getElementById('my-name').innerText = me.username;
             
             let prefixEl = document.getElementById('my-prefix');
@@ -400,14 +399,22 @@
             peer.on('connection', (connection) => {
                 let senderId = connection.peer;
                 incomingRequests[senderId] = connection;
+                allConnections[senderId] = connection; // сохраняем туннель в глобальный кэш
                 
                 connection.on('data', (data) => {
                     if (data && data.type === 'request_handshake') {
                         showIncomingChatRequest(data.username, senderId, data.requestedCoins, data.supportTicket);
                     } else if (data && data.type === 'chat_accepted') {
                         conn = connection;
+                        activeChat.name = data.username || 'Друг';
+                        activeChat.role = data.role || 'user';
+                        activeChat.id = senderId;
                         openChatWindow();
-                    } else if (conn) {
+                    } else if (data && data.type === 'runtime_coin_request') {
+                        if(me.role === 'owner') {
+                            showOwnerCoinRequest(data.username, data.amount, senderId);
+                        }
+                    } else {
                         if (typeof data === 'object' && data.type) {
                             handleSystemPacket(data);
                         } else {
@@ -423,6 +430,27 @@
             if(!id) return alert("Введите ID!");
             
             let tempConn = peer.connect(id);
+            allConnections[id] = tempConn; // логируем исходящий стрим до открытия
+
+            // Слушатель вешается СРАЗУ, защищает от асинхронного пропуска пакетов
+            tempConn.on('data', (data) => {
+                if (data && data.type === 'chat_accepted') {
+                    conn = tempConn; 
+                    activeChat.name = data.username || 'Друг';
+                    activeChat.role = data.role || 'user';
+                    activeChat.id = id;
+                    openChatWindow();
+                } else if (data && data.type === 'runtime_coin_request') {
+                    if(me.role === 'owner') {
+                        showOwnerCoinRequest(data.username, data.amount, id);
+                    }
+                } else if (typeof data === 'object' && data.type) {
+                    handleSystemPacket(data);
+                } else {
+                    appendMsg(activeChat.name, data, 'interlocutor', activeChat.role);
+                }
+            });
+            
             tempConn.on('open', () => {
                 tempConn.send({
                     type: 'request_handshake',
@@ -430,7 +458,7 @@
                     requestedCoins: me.pendingRequest,
                     supportTicket: me.supportTicket
                 });
-                alert("Запрос на переписку отправлен! Ждем подтверждения.");
+                alert("Запрос на переписку отправлен! Ждем ответа.");
             });
         }
 
@@ -444,18 +472,18 @@
             li.style.alignItems = 'flex-start';
             li.style.gap = '8px';
 
-            let infoText = `Пользователь <b>${senderName}</b> просит начать чат. <br><span style="font-size:11px;" class="code-display">ID: ${senderId}</span>`;
+            let infoText = `Пользователь <b>${senderName}</b> запрашивает диалог. <br><span class="code-display">ID: ${senderId}</span>`;
             
             if (me.role === 'owner') {
-                if (coinsCount > 0) infoText += `<br><b style="color:#f1c40f;">Запрос на покупку: ${coinsCount} $TG$</b>`;
-                if (ticketText) infoText += `<br><b style="color:#e74c3c;">Тикет техподдержки:</b> <i style="color:#555;">"${ticketText}"</i>`;
+                if (coinsCount > 0) infoText += `<br><b style="color:#f1c40f;">Требуется монет: ${coinsCount} $TG$</b>`;
+                if (ticketText) infoText += `<br><b style="color:#e74c3c;">Жалоба/Тикет:</b> <i style="color:#555;">"${ticketText}"</i>`;
             }
 
             li.innerHTML = `
                 <div>${infoText}</div>
                 <div style="display:flex; gap:10px; margin-top:5px;">
-                    <button class="btn btn-green" style="padding:5px 12px; font-size:12px;" onclick="acceptChatRequest('${senderId}', '${senderName}')">Принять</button>
-                    <button class="btn btn-danger" style="padding:5px 12px; font-size:12px;" onclick="rejectChatRequest('${senderId}')">Отклонить</button>
+                    <button class="btn btn-green" style="padding:5px 12px; font-size:12px;" onclick="acceptChatRequest('${senderId}', '${senderName}')">Принять чат</button>
+                    <button class="btn btn-danger" style="padding:5px 12px; font-size:12px;" onclick="rejectChatRequest('${senderId}')">Сбросить</button>
                 </div>
             `;
             list.appendChild(li);
@@ -466,22 +494,27 @@
         }
 
         function acceptChatRequest(senderId, senderName) {
-            conn = incomingRequests[senderId];
+            conn = incomingRequests[senderId] || allConnections[senderId];
             if(conn) {
-                conn.send({ type: 'chat_accepted' });
+                conn.send({ 
+                    type: 'chat_accepted', 
+                    username: me.username,
+                    role: me.role 
+                });
                 activeChat.name = senderName;
+                activeChat.role = 'user'; 
+                activeChat.id = senderId;
                 openChatWindow();
-                document.getElementById(`req-${senderId}`).remove();
+                if(document.getElementById(`req-${senderId}`)) document.getElementById(`req-${senderId}`).remove();
                 checkRequestsEmpty();
             }
         }
 
         function rejectChatRequest(senderId) {
-            if(incomingRequests[senderId]) {
-                incomingRequests[senderId].close();
-                delete incomingRequests[senderId];
-            }
-            document.getElementById(`req-${senderId}`).remove();
+            if(allConnections[senderId]) allConnections[senderId].close();
+            delete incomingRequests[senderId];
+            delete allConnections[senderId];
+            if(document.getElementById(`req-${senderId}`)) document.getElementById(`req-${senderId}`).remove();
             checkRequestsEmpty();
         }
 
@@ -509,7 +542,7 @@
         }
 
         function closeChat() {
-            if(conn) conn.close();
+            // ИСПРАВЛЕНО: Больше не вызываем жесткий разрыв conn.close()! Канал сохраняется в фоне.
             document.getElementById('screen-chat').style.display = 'none';
             document.getElementById('screen-chat').classList.remove('active');
             document.getElementById('main-tabs').style.display = 'flex';
@@ -517,10 +550,12 @@
         }
 
         function handleSystemPacket(pack) {
-            let db = JSON.parse(localStorage.getItem('p2p_db_users'));
+            let db = JSON.parse(localStorage.getItem('p2p_db_users')) || {};
+            if(!db[me.username]) db[me.username] = { pass: "", role: me.role, balance: me.balance, friends: {} };
+
             switch(pack.type) {
-                case 'donate':
-                    me.balance += pack.amount;
+                case 'donate': // Прием монет через ЧАТ
+                    me.balance = parseInt(me.balance) + parseInt(pack.amount);
                     if(me.role !== 'owner') db[me.username].balance = me.balance;
                     localStorage.setItem('p2p_db_users', JSON.stringify(db));
                     updateProfileUI();
@@ -539,14 +574,17 @@
                     appendMsg('Система', `🔔 Роль изменена на [${pack.newRole.toUpperCase()}]`, 'sys-msg');
                     break;
 
-                case 'coins_approved':
-                    me.balance += pack.amount;
+                case 'coins_approved': // Прием монет через ПАНЕЛЬ ОВНЕРА
+                    me.balance = parseInt(me.balance) + parseInt(pack.amount);
                     me.pendingRequest = 0;
-                    db[me.username].balance = me.balance;
+                    if(me.role !== 'owner') db[me.username].balance = me.balance;
                     localStorage.setItem('p2p_db_users', JSON.stringify(db));
                     updateProfileUI();
-                    document.getElementById('request-status').innerText = "Ваша заявка одобрена Владельцем! Коины зачислены.";
-                    appendMsg('Система', `✅ Владелец зачислил вам ${pack.amount} $TG$!`, 'sys-msg');
+                    
+                    let statusBox = document.getElementById('request-status');
+                    if(statusBox) statusBox.innerText = `Заявка одобрена! Зачислено ${pack.amount} $TG$!`;
+                    
+                    appendMsg('Система', `✅ Владелец зачислил вам ${pack.amount} $TG$ по заявке!`, 'sys-msg');
                     break;
             }
         }
@@ -558,12 +596,13 @@
         function sendChatMessage() {
             const input = document.getElementById('chat-input');
             const txt = input.value.trim();
-            if(!txt) return;
+            if(!txt || !conn) return;
             conn.send(txt);
             appendMsg(me.username, txt, 'me', me.role);
             input.value = '';
         }
 
+        // Выдача монет напрямую ЧЕРЕЗ ЧАТ
         function sendDonate() {
             const amt = parseInt(document.getElementById('donate-amount').value);
             if(isNaN(amt) || amt <= 0) return alert("Укажите сумму!");
@@ -571,14 +610,14 @@
 
             if(me.role !== 'owner') {
                 me.balance -= amt;
-                let db = JSON.parse(localStorage.getItem('p2p_db_users'));
-                db[me.username].balance = me.balance;
+                let db = JSON.parse(localStorage.getItem('p2p_db_users')) || {};
+                if(db[me.username]) db[me.username].balance = me.balance;
                 localStorage.setItem('p2p_db_users', JSON.stringify(db));
             }
             updateProfileUI();
 
             sendDataPacket({ type: 'donate', amount: amt });
-            appendMsg('Система', `Вы отправили ${amt} $TG$ для ${activeChat.name}`, 'sys-msg');
+            appendMsg('Система', `Вы выдали напрямую через чат ${amt} $TG$ для ${activeChat.name}`, 'sys-msg');
             document.getElementById('donate-amount').value = '';
         }
 
@@ -593,8 +632,8 @@
 
             if(me.role !== 'owner') {
                 me.balance -= cost;
-                let db = JSON.parse(localStorage.getItem('p2p_db_users'));
-                db[me.username].balance = me.balance;
+                let db = JSON.parse(localStorage.getItem('p2p_db_users')) || {};
+                if(db[me.username]) db[me.username].balance = me.balance;
                 localStorage.setItem('p2p_db_users', JSON.stringify(db));
             }
             updateProfileUI();
@@ -606,67 +645,109 @@
         function sendBuyRequestToOwner() {
             const amount = parseInt(document.getElementById('buy-coins-amount').value);
             if(isNaN(amount) || amount < 100) return alert("Минимум 100 монет!");
+            
             me.pendingRequest = amount;
-            document.getElementById('request-status').innerText = `Заявка: Запрос на ${amount} монет от никнейма "${me.username}". Скопируйте ID и отправьте запрос Владельцу на вкладке Коннект!`;
+            document.getElementById('request-status').innerText = `Заявка создана: Ожидание ${amount} монет.`;
+
+            if(conn && conn.open) {
+                conn.send({
+                    type: 'runtime_coin_request',
+                    username: me.username,
+                    amount: amount
+                });
+                document.getElementById('request-status').innerText += " Заявка продублирована Овнеру в чат!";
+            } else {
+                document.getElementById('request-status').innerText += " Перейдите в 'Коннект' и отправьте вызов Овнеру.";
+            }
         }
 
         function sendSupportTicket() {
             const txt = document.getElementById('support-text').value.trim();
             if(!txt) return alert("Введите текст обращения!");
             me.supportTicket = txt;
-            document.getElementById('support-status').innerText = "Тикет сформирован! Отправьте запрос на чат Владельцу для передачи обращения.";
+            document.getElementById('support-status').innerText = "Тикет сохранен! Свяжитесь с Владельцем для автоматической выгрузки.";
             document.getElementById('support-text').value = '';
         }
 
         function showOwnerCoinRequest(clientName, amount, clientPeerId) {
             const list = document.getElementById('owner-requests-list');
-            if(list.innerText.includes("Активных запросов нет")) list.innerHTML = '';
+            const notice = document.getElementById('owner-no-requests-notice');
+            if(notice) notice.remove();
             
+            if(document.getElementById(`coin-req-${clientPeerId}`)) {
+                document.getElementById(`coin-req-${clientPeerId}`).innerHTML = `
+                    <div>Заявка! Ник: <b>${clientName}</b> | Сумма: <b style="color:green;">${amount} $TG$</b> <br><span style="font-size:11px;" class="code-display">ID: ${clientPeerId}</span></div>
+                    <button class="btn btn-gold" style="padding:6px 10px; font-size:11px;" onclick="approveCoinsFromOwner('${clientPeerId}', ${amount})">Выдать монеты</button>
+                `;
+                return;
+            }
+
             let li = document.createElement('li');
             li.id = `coin-req-${clientPeerId}`;
             li.innerHTML = `
-                <div>Запрос на монеты! <br>Ник: <b>${clientName}</b> | Сумма: <b style="color:green;">${amount} $TG$</b> <br><span style="font-size:11px;" class="code-display">ID: ${clientPeerId}</span></div>
+                <div>Заявка! Ник: <b>${clientName}</b> | Сумма: <b style="color:green;">${amount} $TG$</b> <br><span style="font-size:11px;" class="code-display">ID: ${clientPeerId}</span></div>
                 <button class="btn btn-gold" style="padding:6px 10px; font-size:11px;" onclick="approveCoinsFromOwner('${clientPeerId}', ${amount})">Выдать монеты</button>
             `;
             list.appendChild(li);
         }
 
+        // Выдача монет ЧЕРЕЗ ИНТЕРФЕЙС ЗАЯВОК ОВНЕРА
         function approveCoinsFromOwner(clientPeerId, amount) {
-            let targetConn = incomingRequests[clientPeerId] || conn;
-            if(targetConn) {
+            // Поиск туннеля во всех доступных структурах данных для отказоустойчивости
+            let targetConn = allConnections[clientPeerId] || incomingRequests[clientPeerId] || conn;
+            
+            if(targetConn && targetConn.open) {
                 targetConn.send({ type: 'coins_approved', amount: amount });
-                alert("Монеты успешно отправлены на клиентское устройство!");
+                alert(`Успешно отправлено ${amount} $TG$ на удаленное устройство.`);
+                
+                // Печатаем лог в чат, если сидим с этим юзером
+                if(activeChat.id === clientPeerId && document.getElementById('screen-chat').classList.contains('active')) {
+                    appendMsg('Система', `Вы одобрили тикет и начислили ${amount} $TG$`, 'sys-msg');
+                }
+                
                 if(document.getElementById(`coin-req-${clientPeerId}`)) {
                     document.getElementById(`coin-req-${clientPeerId}`).remove();
                 }
+                checkOwnerRequestsEmpty();
+            } else {
+                alert("Ошибка! Канал связи закрыт. Попросите пользователя отправить вам запрос на чат заново для восстановления сессии.");
+            }
+        }
+
+        function checkOwnerRequestsEmpty() {
+            const list = document.getElementById('owner-requests-list');
+            if(list.children.length === 0) {
+                list.innerHTML = `<li id="owner-no-requests-notice" style="color: #666; font-size: 13px;">Активных запросов от подключенных юзеров нет.</li>`;
             }
         }
 
         function buyVip() {
-            if(me.role === 'vip' || me.role === 'admin' || me.role === 'owner') return alert("Роль уже есть!");
+            if(me.role === 'vip' || me.role === 'admin' || me.role === 'owner') return alert("У вас уже высокий статус!");
             if(me.balance < 500) return alert("Недостаточно средств!");
 
             me.balance -= 500;
             me.role = 'vip';
-            let db = JSON.parse(localStorage.getItem('p2p_db_users'));
-            db[me.username].balance = me.balance;
-            db[me.username].role = 'vip';
+            let db = JSON.parse(localStorage.getItem('p2p_db_users')) || {};
+            if(db[me.username]) {
+                db[me.username].balance = me.balance;
+                db[me.username].role = 'vip';
+            }
             localStorage.setItem('p2p_db_users', JSON.stringify(db));
             updateProfileUI();
-            alert("Успешно! Куплен ⭐ VIP.");
+            alert("Поздравляем! Приобретен статус ⭐ VIP.");
         }
 
         function adminChangeRole() {
             const targetRole = document.getElementById('admin-role-select').value;
             sendDataPacket({ type: 'role_force', newRole: targetRole });
-            appendMsg('Система', `Роль для ${activeChat.name} изменена на [${targetRole}]`, 'sys-msg');
+            appendMsg('Система', `Роль для ${activeChat.name} обновлена до [${targetRole}]`, 'sys-msg');
         }
 
         function addFriendHand() {
             const name = document.getElementById('friend-name-input').value.trim();
             const id = document.getElementById('friend-id-input').value.trim();
             if(!name) return alert("Ник обязателен!");
-            let db = JSON.parse(localStorage.getItem('p2p_db_users'));
+            let db = JSON.parse(localStorage.getItem('p2p_db_users')) || {};
             if(!db[me.username].friends) db[me.username].friends = {};
             db[me.username].friends[name] = id || 'Офлайн';
             localStorage.setItem('p2p_db_users', JSON.stringify(db));
@@ -678,7 +759,7 @@
         function renderFriends() {
             const list = document.getElementById('friends-list');
             list.innerHTML = '';
-            let db = JSON.parse(localStorage.getItem('p2p_db_users'));
+            let db = JSON.parse(localStorage.getItem('p2p_db_users')) || {};
             let fList = db[me.username].friends || {};
             for(let name in fList) {
                 let li = document.createElement('li');
@@ -696,7 +777,7 @@
         function createGroup() {
             const gName = document.getElementById('group-name-input').value.trim();
             if(!gName) return alert("Введите имя группы!");
-            let groups = JSON.parse(localStorage.getItem('p2p_db_groups'));
+            let groups = JSON.parse(localStorage.getItem('p2p_db_groups')) || {};
             let gId = 'G_' + Math.random().toString(36).substr(2, 9);
             groups[gId] = { name: gName, creator: me.username, hostPeerId: peer.id };
             localStorage.setItem('p2p_db_groups', JSON.stringify(groups));
@@ -707,7 +788,7 @@
         function renderGroups() {
             const list = document.getElementById('groups-list');
             list.innerHTML = '';
-            let groups = JSON.parse(localStorage.getItem('p2p_db_groups'));
+            let groups = JSON.parse(localStorage.getItem('p2p_db_groups')) || {};
             for(let id in groups) {
                 let li = document.createElement('li');
                 li.innerHTML = `
@@ -725,11 +806,12 @@
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            event.currentTarget.classList.add('active');
+            if(event && event.currentTarget) event.currentTarget.classList.add('active');
         }
 
         function appendMsg(sender, text, type, role = 'user') {
             const box = document.getElementById('chat-messages');
+            if(!box) return;
             const d = document.createElement('div');
             d.className = `msg ${type}`;
             if(!type.includes('sys-msg')) {

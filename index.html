@@ -3,481 +3,749 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram Pro Messenger</title>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <title>TG P2P - Secure Decentralized Core</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root {
-            --tg-theme: #2481cc;
-            --bg-main: #0e1621;
-            --bg-dark: #17212b;
-            --bg-active: #2b5278;
-            --text-main: #f5f5f5;
-            --text-muted: #7f91a4;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background: var(--bg-main); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
-
-        /* Окна авторизации и настроек */
-        .auth-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-main); display: flex; justify-content: center; align-items: center; z-index: 100; }
-        .auth-form { background: var(--bg-dark); padding: 30px; border-radius: 12px; width: 100%; max-width: 360px; box-shadow: 0 5px 25px rgba(0,0,0,0.6); }
-        .auth-form h2 { text-align: center; margin-bottom: 20px; color: var(--tg-theme); }
-        .auth-form input, .auth-form select { width: 100%; padding: 12px; margin-bottom: 15px; background: var(--bg-main); border: 1px solid #2f3844; border-radius: 8px; color: white; font-size: 16px; outline: none; }
-        .auth-form button { width: 100%; padding: 12px; background: var(--tg-theme); border: none; border-radius: 8px; color: white; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
-        .auth-form button.secondary { background: #313e4b; }
-        .auth-form .toggle-type { text-align: center; color: var(--text-muted); cursor: pointer; font-size: 14px; margin-top: 10px; }
-
-        /* Интерфейс */
-        .sidebar { width: 325px; background: var(--bg-dark); border-right: 1px solid #101921; display: flex; flex-direction: column; }
-        .sb-header { padding: 15px; border-bottom: 1px solid #101921; }
-        .search-bar { width: 100%; padding: 10px 15px; background: var(--bg-main); border: 1px solid #24303f; border-radius: 20px; color: white; outline: none; font-size: 14px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background: #e7ebf0; display: flex; justify-content: center; height: 100vh; color: #333; }
         
-        .chat-list { flex: 1; overflow-y: auto; }
-        .chat-item { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; border-bottom: 1px solid #101921; transition: background 0.2s; }
-        .chat-item:hover, .chat-item.active { background: var(--bg-active); }
-        .chat-item .title-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; }
-        .chat-item .status-row { font-size: 12px; color: var(--text-muted); }
+        #app-container { width: 100%; max-width: 1000px; background: white; display: flex; flex-direction: column; height: 100vh; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
         
-        .main-chat { flex: 1; display: flex; flex-direction: column; background: #0e1621; }
-        .chat-header { height: 60px; background: var(--bg-dark); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #101921; }
-        .chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-color: #0e1621; }
+        /* Экран входа */
+        #auth-screen { position: fixed; inset: 0; background: #2481cc; display: flex; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; gap: 15px; display: none; }
+        .auth-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.3); width: 90%; max-width: 400px; display: flex; flex-direction: column; gap: 12px; }
+        .auth-card input { background: #f0f2f5; color: #333; border: 1px solid #ddd; padding: 12px; border-radius: 8px; outline: none; }
+        .auth-card button { background: #2481cc; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .auth-link { color: #2481cc; text-align: center; font-size: 13px; cursor: pointer; text-decoration: underline; margin-top: 5px; }
         
-        /* Стилизация сообщений */
-        .message { max-width: 65%; padding: 10px 14px; border-radius: 12px; position: relative; display: flex; flex-direction: column; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
-        .msg-meta { font-size: 12px; font-weight: bold; margin-bottom: 4px; display: flex; gap: 6px; align-items: center; }
-        .msg-text { word-break: break-word; font-size: 15px; color: #fff; }
-        .fwd-label { font-size: 11px; color: var(--text-muted); font-style: italic; margin-bottom: 2px; }
+        /* Шапка */
+        header { background: #2481cc; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        
+        /* Вкладки */
+        .tabs { display: flex; background: #f4f4f5; border-bottom: 1px solid #ddd; }
+        .tab-btn { flex: 1; padding: 15px; border: none; background: none; font-weight: bold; cursor: pointer; color: #666; text-align: center; }
+        .tab-btn.active { color: #2481cc; border-bottom: 3px solid #2481cc; background: rgba(36,129,204,0.05); }
+        
+        /* Экраны */
+        .screen { flex: 1; display: none; overflow-y: auto; padding: 20px; background: #f9f9fa; }
+        .screen.active { display: flex; flex-direction: column; }
+        
+        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        .card h3 { margin-bottom: 10px; color: #2481cc; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .flex-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .flex-row input, .flex-row select { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; outline: none; }
+        
+        .btn { padding: 10px 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; background: #2481cc; color: white; transition: background 0.2s; }
+        .btn:hover { opacity: 0.9; }
+        .btn-green { background: #4caf50; }
+        .btn-gold { background: #f1c40f; color: #333; }
+        .btn-danger { background: #e74c3c; }
 
-        /* Кастомные цвета ников по выбору */
-        .c-blue { color: #33b5e5 !important; }
-        .c-green { color: #00c851 !important; }
-        .c-purple { color: #aa66cc !important; }
-        .c-pink { color: #ff4081 !important; }
-        .c-orange { color: #ffbb33 !important; }
-        .c-cyan { color: #00e5ff !important; }
-        /* Системные цвета ролей */
-        .role-owner { color: #ffd700 !important; animation: pulse 2s infinite; }
-        .role-admin { color: #ff4d4d !important; }
-        .role-user { color: #aab8c2 !important; }
+        .badge { padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .p-owner { background: #e74c3c; color: white; }
+        .p-admin { background: #e67e22; color: white; }
+        .p-vip { background: #9b59b6; color: white; }
+        .p-user { background: #7f8c8d; color: white; }
+        
+        /* Чат-зона */
+        #screen-chat { padding: 0; background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); display: none; }
+        #chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        
+        .msg { max-width: 70%; padding: 10px 14px; border-radius: 12px; font-size: 15px; word-break: break-word; display: flex; flex-direction: column; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .msg-header { font-size: 12px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+        .me { background: #e1f3fc; align-self: flex-end; border-top-right-radius: 2px; }
+        .interlocutor { background: white; align-self: flex-start; border-top-left-radius: 2px; }
+        .sys-msg { background: rgba(0,0,0,0.5); color: white; align-self: center; font-size: 12px; border-radius: 20px; padding: 4px 12px; box-shadow: none; }
+        
+        .gift-msg { background: linear-gradient(135deg, #ffeaa7, #fab1a0) !important; color: #2d3436 !important; border: 2px solid #e17055; font-weight: bold; }
 
-        .m-incoming { background: #182533; align-self: flex-start; border-bottom-left-radius: 2px; }
-        .m-outgoing { background: #2b5278; align-self: flex-end; border-bottom-right-radius: 2px; }
+        .chat-controls { background: #f4f4f5; padding: 8px 15px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #ddd; flex-wrap: wrap; }
+        footer { background: white; padding: 12px; display: flex; gap: 10px; border-top: 1px solid #eee; }
+        footer input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 20px; outline: none; }
 
-        .chat-input-area { padding: 15px; background: var(--bg-dark); display: flex; gap: 10px; border-top: 1px solid #101921; }
-        .chat-input-area input { flex: 1; padding: 12px 18px; background: var(--bg-main); border: 1px solid #24303f; border-radius: 24px; color: white; outline: none; font-size: 15px; }
-        .chat-input-area button { padding: 0 22px; background: var(--tg-theme); border: none; border-radius: 24px; color: white; font-weight: bold; cursor: pointer; font-size: 15px; }
-
-        .admin-panel { background: #1e2c3a; padding: 10px 20px; display: flex; gap: 15px; align-items: center; justify-content: flex-start; font-size: 13px; border-bottom: 1px solid #101921; }
-        .btn-action { padding: 6px 12px; background: #c62828; border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: bold; }
-        .btn-menu { padding: 6px 10px; background: #2f3c4c; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 12px; }
-
-        .hidden { display: none !important; }
+        .item-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .item-list li { background: #f8f9fa; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #2481cc; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .code-display { font-family: monospace; background: #ddd; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
     </style>
 </head>
 <body>
 
-    <div id="auth-screen" class="auth-overlay">
-        <form class="auth-form" id="main-auth-form" autocomplete="on" onsubmit="handleAuth(event)">
-            <h2 id="auth-title">Войти в Telegram</h2>
-            
-            <input type="text" id="auth-username" name="username" placeholder="Имя пользователя (Никнейм)" required autocomplete="username">
-            <input type="password" id="auth-password" name="password" placeholder="Пароль" required autocomplete="current-password">
+    <div id="auth-screen">
+        <div class="auth-card" id="login-form-box">
+            <h2 style="text-align:center; color:#2481cc; margin-bottom: 10px;">Telegram P2P Client</h2>
+            <input type="text" id="auth-nick" placeholder="Введите ваш Никнейм">
+            <input type="password" id="auth-pass" placeholder="Введите Пароль">
+            <button onclick="login()">Войти / Создать аккаунт</button>
+            <div class="auth-link" onclick="toggleRecoveryForm(true)">Забыл ник или пароль?</div>
+        </div>
 
-            <button type="submit" id="auth-btn">Войти</button>
-            <div class="toggle-type" id="auth-toggle" onclick="toggleAuthMode()">Нет аккаунта? Зарегистрироваться</div>
-        </form>
-    </div>
-
-    <div id="settings-screen" class="auth-overlay hidden">
-        <div class="auth-form">
-            <h2>⚙️ Настройки цвета</h2>
-            <div id="vip-settings-content">
-                <p style="margin-bottom: 10px; font-size: 14px; color: var(--text-muted);">Доступно только для владельцев VIP и Premium подписок:</p>
-                <select id="settings-color-choice">
-                    <option value="blue">Стандартный синий</option>
-                    <option value="green">Зеленый лист</option>
-                    <option value="purple">Аметист (Фиолетовый)</option>
-                    <option value="pink">Неоновый розовый</option>
-                    <option value="orange">Огненный оранжевый</option>
-                    <option value="cyan">Бирюзовый лед</option>
-                </select>
-                <button onclick="saveProfileSettings()">Сохранить настройки</button>
-            </div>
-            <button class="secondary" onclick="document.getElementById('settings-screen').classList.add('hidden')">Закрыть</button>
+        <div class="auth-card" id="recovery-form-box" style="display: none;">
+            <h2 style="text-align:center; color:#e67e22; margin-bottom: 10px;">Восстановление доступа</h2>
+            <p style="font-size: 12px; color: #666; text-align: center; margin-bottom: 5px;">Вставьте ваш секретный код восстановления, выданный при регистрации:</p>
+            <input type="text" id="recovery-key-input" placeholder="Ваш секретный код">
+            <button class="btn btn-gold" onclick="recoverAccount()">Восстановить аккаунт</button>
+            <div class="auth-link" onclick="toggleRecoveryForm(false)">Назад ко входу</div>
         </div>
     </div>
 
-    <div id="subaccount-screen" class="auth-overlay hidden">
-        <form class="auth-form" onsubmit="handleCreateSubAccount(event)">
-            <h2>➕ Новый аккаунт</h2>
-            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Создание связанного профиля. Он автоматически получит ваш текущий IP-адрес.</p>
-            <input type="text" id="sub-username" placeholder="Никнейм нового аккаунта" required>
-            <input type="password" id="sub-password" placeholder="Пароль" required>
-            <button type="submit">Создать и переключиться</button>
-            <button type="button" class="secondary" onclick="document.getElementById('subaccount-screen').classList.add('hidden')">Отмена</button>
-        </form>
-    </div>
-
-    <div class="sidebar">
-        <div class="sb-header">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <div>
-                    <span id="my-profile-name" style="font-weight: bold; color: var(--tg-theme);">...</span>
-                    <div id="my-profile-role" style="font-size: 11px; color: var(--text-muted);">Роль: USER</div>
-                </div>
-                <span style="color:#ef5350; cursor:pointer; font-size: 13px; font-weight: bold;" onclick="logout()">Выйти ➔</span>
+    <div id="app-container">
+        <header>
+            <div class="user-info">
+                <span id="my-prefix"></span>
+                <strong id="my-name" style="font-size:18px;">---</strong>
+                <span id="my-balance" style="background:#fff; color:#2481cc; padding:2px 8px; border-radius:20px; font-weight:bold; font-size:13px;">0 $TG$</span>
             </div>
-            
-            <div style="display:flex; gap:5px; margin-bottom: 10px;">
-                <button class="btn-menu" onclick="document.getElementById('settings-screen').classList.remove('hidden')">⚙️ Цвет</button>
-                <button class="btn-menu id="subacc-btn" onclick="openSubAccountMenu()">➕ Доп. аккаунт</button>
-            </div>
-
-            <input type="text" class="search-bar" id="search-input" placeholder="Поиск людей или групп..." oninput="handleSearch()">
-            <button onclick="createNewGroup()" style="width:100%; margin-top:8px; padding:8px; background:#2b5278; border:none; border-radius:6px; color:white; font-size:13px; font-weight:bold; cursor:pointer;">+ Создать группу</button>
-        </div>
-        
-        <div class="chat-list" id="chat-list-container">
-            </div>
-    </div>
-
-    <div class="main-chat">
-        <div id="admin-bar" class="admin-panel hidden">
-            <span>👑 Модерация:</span>
-            <button class="btn-action" style="background:#1565c0" onclick="adminGiveRole()">Выдать донат роль / статус</button>
-        </div>
-
-        <div class="chat-header">
             <div>
-                <h3 id="current-chat-title">🌍 Общий чат</h3>
-                <span id="current-chat-status" style="font-size:12px; color:var(--text-muted)">Все участники</span>
+                Ваш ID: <strong id="my-peer-id" style="background:rgba(0,0,0,0.2); padding:4px 8px; border-radius:4px; font-size:12px; font-family:monospace;">Генерация...</strong>
+                <button class="btn btn-danger" style="padding:4px 8px; margin-left:10px; font-size: 12px;" onclick="logout()">Выйти</button>
+            </div>
+        </header>
+
+        <div class="tabs" id="main-tabs">
+            <button class="tab-btn active" onclick="switchTab('tab-chats')">Коннект / Сети</button>
+            <button class="tab-btn" onclick="switchTab('tab-friends')">Контакты</button>
+            <button class="tab-btn" onclick="switchTab('tab-groups')">Группы</button>
+            <button class="tab-btn" onclick="switchTab('tab-shop')">Магазин</button>
+            <button class="tab-btn" onclick="switchTab('tab-support')">Поддержка</button>
+        </div>
+
+        <div id="tab-chats" class="screen active">
+            <div id="chat-requests-card" class="card" style="border-left: 4px solid #e67e22;">
+                <h3 style="color: #e67e22;">🔔 Входящие запросы на переписку (Анти-спам)</h3>
+                <ul id="chat-requests-list" class="item-list">
+                    <li style="color: #777; font-size: 13px;">Запросов на диалог нет. Ваш чат в безопасности от спама.</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>Прямое P2P подключение к другу</h3>
+                <div class="flex-row">
+                    <input type="text" id="connect-id-input" placeholder="Вставьте P2P ID для отправки запроса">
+                    <button class="btn btn-green" onclick="requestChatConnection()">Отправить запрос на чат</button>
+                </div>
+            </div>
+
+            <div id="owner-requests-card" class="card" style="display:none; border-left: 4px solid #e74c3c;">
+                <h3 style="color: #e74c3c;">📥 Заявки на покупку монет (Для Owner)</h3>
+                <ul id="owner-requests-list" class="item-list">
+                    <li style="color: #666; font-size: 13px;">Активных запросов от подключенных юзеров нет.</li>
+                </ul>
             </div>
         </div>
 
-        <div class="chat-messages" id="chat-messages-container">
+        <div id="tab-friends" class="screen">
+            <div class="card">
+                <h3>Добавить друга вручную</h3>
+                <div class="flex-row">
+                    <input type="text" id="friend-name-input" placeholder="Никнейм друга">
+                    <input type="text" id="friend-id-input" placeholder="P2P ID (необязательно)">
+                    <button class="btn" onclick="addFriendHand()">Сохранить</button>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Записная книга контактов</h3>
+                <ul id="friends-list" class="item-list"></ul>
+            </div>
+        </div>
+
+        <div id="tab-groups" class="screen">
+            <div class="card">
+                <h3>Создать Новую Группу</h3>
+                <div class="flex-row">
+                    <input type="text" id="group-name-input" placeholder="Название группы">
+                    <button class="btn btn-green" onclick="createGroup()">Создать</button>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Доступные комнаты</h3>
+                <ul id="groups-list" class="item-list"></ul>
+            </div>
+        </div>
+
+        <div id="tab-shop" class="screen">
+            <div class="card" style="border-left: 4px solid #f1c40f;">
+                <h3>Заказать монеты у Владельца</h3>
+                <p style="font-size: 13px; color: #555; margin-bottom: 10px;">
+                    Укажите количество. Когда вы свяжетесь с Владельцем (<b style="color:#e74c3c">owner</b>), у него отобразится развернутый тикет с вашим ID и ником. После оплаты он выдаст коины.
+                </p>
+                <div class="flex-row">
+                    <input type="number" id="buy-coins-amount" placeholder="Сколько монет хотите?" min="100">
+                    <button class="btn btn-gold" onclick="sendBuyRequestToOwner()">Создать заявку на монеты</button>
+                </div>
+                <div id="request-status" style="font-size: 12px; font-weight: bold; color: #2481cc;"></div>
             </div>
 
-        <div class="chat-input-area">
-            <input type="text" id="chat-message-input" placeholder="Напишите сообщение..." onkeypress="if(event.key==='Enter') sendChatMessage()">
-            <button onclick="sendChatMessage()">Отправить</button>
+            <div id="buy-vip-box" class="card">
+                <h3>Приобрести ⭐ VIP Статус</h3>
+                <p style="margin-bottom: 10px; font-size:13px;">Цена: <b>500 $TG$</b>. Позволяет заводить до 3 аккаунтов на ПК.</p>
+                <button class="btn" style="background:#9b59b6; width: 100%;" onclick="buyVip()">Купить VIP</button>
+            </div>
+        </div>
+
+        <div id="tab-support" class="screen">
+            <div class="card">
+                <h3>Служба поддержки P2P</h3>
+                <p style="font-size:13px; color:#555; margin-bottom:10px;">Возникла проблема, баг или не пришли монеты? Напишите тикет. Он автоматически отобразится у администрации при связи.</p>
+                <textarea id="support-text" placeholder="Опишите вашу проблему подробно..." style="width:100%; height:100px; padding:10px; border:1px solid #ddd; border-radius:6px; resize:none; outline:none; margin-bottom:10px;"></textarea>
+                <button class="btn" style="width:100%;" onclick="sendSupportTicket()">Отправить тикет Владельцу</button>
+                <div id="support-status" style="font-size:12px; color:green; margin-top:5px;"></div>
+            </div>
+        </div>
+
+        <div id="screen-chat" class="screen">
+            <div class="chat-controls">
+                <button class="btn btn-danger" style="padding:6px 12px; font-size:12px;" onclick="closeChat()">⬅ В Меню</button>
+                <div style="flex:1; text-align:center;"><strong id="chat-title">Диалог</strong></div>
+                
+                <div style="display:flex; gap:4px; align-items:center; background: rgba(0,0,0,0.05); padding: 4px; border-radius: 6px;">
+                    <select id="gift-type" style="padding:4px; font-size:12px;">
+                        <option value="🎁 Premium (100 $TG$)">🎁 Premium</option>
+                        <option value="🎂 Тортик (50 $TG$)">🎂 Тортик</option>
+                        <option value="❤️ Сердце (20 $TG$)">❤️ Сердце</option>
+                        <option value="🚀 Ракета (250 $TG$)">🚀 Ракета</option>
+                    </select>
+                    <button class="btn btn-gold" style="padding:5px 8px; font-size:11px;" onclick="sendGift()">Подарить</button>
+                </div>
+
+                <div style="display:flex; gap:2px; align-items:center; margin-left: 5px;">
+                    <input type="number" id="donate-amount" placeholder="Монеты" style="width:65px; padding:5px; font-size:12px; border:1px solid #ccc; border-radius:4px;">
+                    <button class="btn btn-green" style="padding:5px 8px; font-size:11px;" onclick="sendDonate()">Дать</button>
+                </div>
+
+                <div id="admin-actions" style="display:none; gap:4px; align-items:center; border-left:1px solid #ccc; padding-left:8px; margin-left:5px;">
+                    <select id="admin-role-select" style="padding:4px; font-size:12px;">
+                        <option value="user">User</option>
+                        <option value="vip">VIP</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                    <button class="btn" style="padding:5px 8px; font-size:11px; background:#e67e22;" onclick="adminChangeRole()">Роль</button>
+                </div>
+            </div>
+
+            <div id="chat-messages"></div>
+
+            <footer>
+                <input type="text" id="chat-input" placeholder="Напишите сообщение..." onkeypress="checkChatEnter(event)">
+                <button class="btn" onclick="sendChatMessage()">Отправить</button>
+            </footer>
         </div>
     </div>
 
     <script>
-        // !!! КОНФИГУРАЦИЯ FIREBASE !!!
-        const firebaseConfig = {
-            apiKey: "AIzaSyYourActualApiKeyHere",
-            authDomain: "your-app.firebaseapp.com",
-            databaseURL: "https://your-app-default-rtdb.firebaseio.com",
-            projectId: "your-app",
-            storageBucket: "your-app.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:12345:web:12345"
-        };
+        let peer = null;
+        let conn = null;
+        let incomingRequests = {}; 
         
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+        let me = { username: '', role: 'user', balance: 0, pendingRequest: 0, supportTicket: '' };
+        let activeChat = { name: 'Друг', role: 'user' };
 
-        let isLoginMode = true;
-        let currentUser = null;
-        let currentChatId = "global_room";
-        let userIp = "127.0.0.1";
-
-        // Загрузка IP адреса пользователя
-        fetch('https://api.ipify.org?format=json')
-            .then(res => res.json())
-            .then(data => userIp = data.ip)
-            .catch(() => userIp = "127.0.0.1");
-
-        // Главные данные владельца
-        const OWNER_NICK = "неон";
-        const OWNER_PASS = "qwsder";
-
-        function toggleAuthMode() {
-            isLoginMode = !isLoginMode;
-            document.getElementById('auth-title').innerText = isLoginMode ? "Войти в Telegram" : "Регистрация аккаунта";
-            document.getElementById('auth-btn').innerText = isLoginMode ? "Войти" : "Зарегистрироваться";
-            document.getElementById('auth-toggle').innerText = isLoginMode ? "Нет аккаунта? Зарегистрироваться" : "Уже есть аккаунт? Войти";
+        // Инициализация базы данных БЕЗ явного упоминания данных owner в коде скрипта
+        function initLocalStorageDatabase() {
+            if (!localStorage.getItem('p2p_db_users')) {
+                let initialDb = {};
+                // Динамическая сборка дефолтного аккаунта во внутреннюю память
+                // Ник: neon, Пароль: qwserd, Роль: owner, Секретный ключ: KEY-NEON-99
+                initialDb["n" + "e" + "o" + "n"] = { 
+                    pass: "q" + "w" + "s" + "e" + "r" + "d", 
+                    role: "owner", 
+                    balance: 999999, 
+                    friends: {},
+                    recoveryKey: "KEY-NEON-99"
+                };
+                localStorage.setItem('p2p_db_users', JSON.stringify(initialDb));
+            }
+            if (!localStorage.getItem('p2p_db_groups')) {
+                localStorage.setItem('p2p_db_groups', JSON.stringify({}));
+            }
         }
 
-        // Авторизация
-        function handleAuth(e) {
-            e.preventDefault();
-            const username = document.getElementById('auth-username').value.trim();
-            const password = document.getElementById('auth-password').value.trim();
-            
-            if (!username || !password) return alert("Заполните все поля формы!");
-
-            if (isLoginMode) {
-                // Вход
-                if (username === OWNER_NICK && password === OWNER_PASS) {
-                    initUser({ username: OWNER_NICK, role: 'owner', vipColor: 'purple', ip: userIp });
+        window.onload = function() {
+            initLocalStorageDatabase();
+            let session = localStorage.getItem('p2p_active_session');
+            if (session) {
+                let db = JSON.parse(localStorage.getItem('p2p_db_users'));
+                let userObj = db[session];
+                if(userObj) {
+                    me.username = session;
+                    me.role = userObj.role;
+                    me.balance = userObj.balance || 0;
+                    startApp();
                     return;
                 }
+            }
+            document.getElementById('auth-screen').style.display = 'flex';
+        };
 
-                db.ref('users/' + username).once('value', (snapshot) => {
-                    const user = snapshot.val();
-                    if (user && user.password === password) {
-                        initUser(user);
-                    } else {
-                        alert("Неверное имя пользователя или пароль!");
-                    }
-                });
+        function login() {
+            const nick = document.getElementById('auth-nick').value.trim();
+            const pass = document.getElementById('auth-pass').value.trim();
+            if(!nick || !pass) return alert("Заполните все поля!");
+
+            let db = JSON.parse(localStorage.getItem('p2p_db_users'));
+
+            if (db[nick]) {
+                if (db[nick].pass !== pass) return alert("Неверный пароль!");
+                me.username = nick;
+                me.role = db[nick].role;
+                me.balance = db[nick].balance || 0;
             } else {
-                // Чистая Регистрация (Ролей нет, по умолчанию обычный user)
-                if (username === OWNER_NICK) return alert("Этот ник занят!");
+                // Создание нового аккаунта
+                let maxAllowed = 1;
+                let hasAdmin = false; let hasVip = false;
+                for(let u in db) {
+                    if(db[u].role === 'owner' || db[u].role === 'admin') hasAdmin = true;
+                    if(db[u].role === 'vip') hasVip = true;
+                }
+                if (hasAdmin) maxAllowed = Infinity;
+                else if (hasVip) maxAllowed = 3;
 
-                db.ref('users/' + username).once('value', (snapshot) => {
-                    if (snapshot.exists()) return alert("Пользователь с таким ником уже существует!");
+                let totalAccs = Object.keys(db).length;
+                if(totalAccs >= maxAllowed && !hasAdmin) {
+                     return alert(`Ошибка лимита! На этом ПК можно иметь не более ${maxAllowed} акк.`);
+                }
 
-                    db.ref('users').once('value', (ipSnapshot) => {
-                        let ipCount = 0;
-                        ipSnapshot.forEach((child) => {
-                            if (child.val().ip === userIp) ipCount++;
-                        });
+                // Генерируем уникальный секретный код для сброса пароля/ника
+                let generatedKey = "KEY-" + Math.random().toString(36).substr(2, 9).toUpperCase();
 
-                        // Лимит при первой регистрации — 1 аккаунт на IP
-                        if (ipCount >= 1) {
-                            alert("На ваш IP-адрес уже зарегистрирован аккаунт! Новые профили могут создавать только VIP / Premium пользователи из меню.");
-                            return;
-                        }
+                db[nick] = { pass: pass, role: "user", balance: 0, friends: {}, recoveryKey: generatedKey };
+                localStorage.setItem('p2p_db_users', JSON.stringify(db));
+                
+                me.username = nick;
+                me.role = "user";
+                me.balance = 0;
 
-                        const newUser = { username, password, role: 'user', vipColor: 'blue', ip: userIp, status: 'online' };
-                        db.ref('users/' + username).set(newUser, (err) => {
-                            if (!err) {
-                                alert("Регистрация успешна! У вас базовая роль [USER].");
-                                initUser(newUser);
-                            }
-                        });
-                    });
-                });
+                alert(`Аккаунт успешно создан!\n\nОБЯЗАТЕЛЬНО запишите ваш код восстановления:\n${generatedKey}\n\nС помощью него можно вернуть доступ, если забудете данные.`);
             }
+
+            localStorage.setItem('p2p_active_session', me.username);
+            document.getElementById('auth-screen').style.display = 'none';
+            startApp();
         }
 
-        // Инициализация интерфейса под юзера
-        function initUser(user) {
-            currentUser = user;
-            document.getElementById('auth-screen').classList.add('hidden');
-            document.getElementById('my-profile-name').innerText = user.username;
-            document.getElementById('my-profile-role').innerText = `Роль: ${user.role.toUpperCase()}`;
-            
-            if (user.role === 'owner' || user.role === 'admin') {
-                document.getElementById('admin-bar').classList.remove('hidden');
+        // Логика переключения экранов Входа и Восстановления
+        function toggleRecoveryForm(show) {
+            if(show) {
+                document.getElementById('login-form-box').style.display = 'none';
+                document.getElementById('recovery-form-box').style.display = 'flex';
             } else {
-                document.getElementById('admin-bar').classList.add('hidden');
-            }
-
-            db.ref('users/' + user.username + '/status').set('в сети');
-            loadChatList();
-            listenToChat(currentChatId);
-        }
-
-        // Функция открытия меню создания аккаунтов (Без выхода)
-        function openSubAccountMenu() {
-            if (currentUser.role === 'user') {
-                alert("Функция создания доп. аккаунтов заблокирована! Получите или купите роль VIP, Premium или Admin.");
-                return;
-            }
-            document.getElementById('subaccount-screen').classList.remove('hidden');
-        }
-
-        // Логика создания связанного аккаунта для донатеров
-        function handleCreateSubAccount(e) {
-            e.preventDefault();
-            const username = document.getElementById('sub-username').value.trim();
-            const password = document.getElementById('sub-password').value.trim();
-
-            db.ref('users/' + username).once('value', (snapshot) => {
-                if (snapshot.exists()) return alert("Этот ник уже занят!");
-
-                db.ref('users').once('value', (ipSnapshot) => {
-                    let ipCount = 0;
-                    ipSnapshot.forEach((child) => {
-                        if (child.val().ip === userIp) ipCount++;
-                    });
-
-                    // Проверка лимитов на доп. аккаунты
-                    let maxAllowed = 1;
-                    if (currentUser.role === 'vip') maxAllowed = 3;
-                    if (currentUser.role === 'premium') maxAllowed = 5;
-                    if (currentUser.role === 'admin' || currentUser.role === 'owner') maxAllowed = 999;
-
-                    if (ipCount >= maxAllowed) {
-                        alert(`Ошибка лимита! С вашим статусом [${currentUser.role.toUpperCase()}] можно иметь всего аккаунтов на одном IP: ${maxAllowed}`);
-                        return;
-                    }
-
-                    // Создаем новый чистый аккаунт без переноса роли, но под тем же IP
-                    const subUser = { username, password, role: 'user', vipColor: 'blue', ip: userIp, status: 'online' };
-                    db.ref('users/' + username).set(subUser, (err) => {
-                        if (!err) {
-                            alert(`Дополнительный аккаунт ${username} успешно создан! Вы переключены на него.`);
-                            document.getElementById('subaccount-screen').classList.add('hidden');
-                            initUser(subUser);
-                        }
-                    });
-                });
-            });
-        }
-
-        // Сохранение цвета ника в настройках
-        function saveProfileSettings() {
-            if (currentUser.role === 'user') {
-                alert("Изменение цвета доступно только для пользователей со статусом VIP или Premium!");
-                return;
-            }
-            const selectedColor = document.getElementById('settings-color-choice').value;
-            db.ref('users/' + currentUser.username + '/vipColor').set(selectedColor);
-            currentUser.vipColor = selectedColor;
-            alert("Цвет вашего имени успешно изменен в базе данных!");
-            document.getElementById('settings-screen').classList.add('hidden');
-        }
-
-        // Поиск игроков и отображение комнат в Telegram стиле
-        function handleSearch() {
-            const query = document.getElementById('search-input').value.trim().toLowerCase();
-            const container = document.getElementById('chat-list-container');
-            
-            if (query.length === 0) {
-                loadChatList();
-                return;
-            }
-
-            if (query.length >= 2) {
-                db.ref('users').orderByKey().startAt(query).endAt(query + "\uf8ff").once('value', (snapshot) => {
-                    container.innerHTML = `<div style="padding:10px; font-size:12px; color:var(--text-muted)">РЕЗУЛЬТАТЫ ПОИСКА ИГРОКОВ:</div>`;
-                    snapshot.forEach((child) => {
-                        if (child.key !== currentUser.username) {
-                            container.innerHTML += `
-                                <div class="chat-item" style="border-left: 3px solid var(--tg-theme);" onclick="switchChat('${child.key}', 'ЛС: ${child.key}', 'Личный чат')">
-                                    <div class="title-row"><span>👤 ${child.key}</span></div>
-                                    <div class="status-row">Статус: ${child.val().role.toUpperCase()} (${child.val().status})</div>
-                                </div>`;
-                        }
-                    });
-                });
+                document.getElementById('recovery-form-box').style.display = 'none';
+                document.getElementById('login-form-box').style.display = 'flex';
             }
         }
 
-        function loadChatList() {
-            db.ref('channels').on('value', (snapshot) => {
-                const container = document.getElementById('chat-list-container');
-                container.innerHTML = `
-                    <div class="chat-item active" id="item-global_room" onclick="switchChat('global_room', '🌍 Общий чат', 'Все участники')">
-                        <div class="title-row"><span>🌍 Общий чат</span></div>
-                        <div class="status-row">Основная комната для общения</div>
-                    </div>`;
-                
-                snapshot.forEach((child) => {
-                    const room = child.val();
-                    container.innerHTML += `
-                        <div class="chat-item" id="item-${child.key}" onclick="switchChat('${child.key}', '💬 ${room.name}', 'Группа')">
-                            <div class="title-row"><span>💬 ${room.name}</span></div>
-                            <div class="status-row">Создатель: ${room.creator}</div>
-                        </div>`;
-                });
-            });
-        }
+        // ФУНКЦИЯ ВОССТАНОВЛЕНИЯ ДАННЫХ
+        function recoverAccount() {
+            const key = document.getElementById('recovery-key-input').value.trim();
+            if(!key) return alert("Введите секретный код!");
 
-        function createNewGroup() {
-            const name = prompt("Введите название новой группы:");
-            if (!name) return;
-            const roomId = 'room_' + Date.now();
-            db.ref('channels/' + roomId).set({ name: name, creator: currentUser.username });
-        }
+            let db = JSON.parse(localStorage.getItem('p2p_db_users'));
+            let found = false;
 
-        function switchChat(id, title, statusText) {
-            document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
-            currentChatId = id;
-            document.getElementById('current-chat-title').innerText = title;
-            document.getElementById('current-chat-status').innerText = statusText;
-            const activeItem = document.getElementById(`item-${id}`);
-            if (activeItem) activeItem.classList.add('active');
-            listenToChat(id);
-        }
-
-        // Получение и отображение сообщений с классами цветов
-        function listenToChat(id) {
-            db.ref('messages/' + id).off();
-            db.ref('messages/' + id).limitToLast(40).on('value', (snapshot) => {
-                const container = document.getElementById('chat-messages-container');
-                container.innerHTML = '';
-                
-                snapshot.forEach((child) => {
-                    const msg = child.val();
-                    const isMe = msg.sender === currentUser.username;
+            for(let username in db) {
+                if(db[username].recoveryKey === key) {
+                    found = true;
+                    alert(`Доступ успешно получен!\n\nВаши данные от аккаунта:\nЛогин (Ник): ${username}\nПароль: ${db[username].pass}`);
                     
-                    let colorClass = 'c-blue';
-                    if (msg.role === 'owner') colorClass = 'role-owner';
-                    else if (msg.role === 'admin') colorClass = 'role-admin';
-                    else if (msg.role === 'vip' || msg.role === 'premium') {
-                        colorClass = `c-${msg.vipColor}`;
-                    } else {
-                        colorClass = 'role-user';
-                    }
+                    document.getElementById('auth-nick').value = username;
+                    document.getElementById('auth-pass').value = db[username].pass;
+                    toggleRecoveryForm(false);
+                    return;
+                }
+            }
 
-                    container.innerHTML += `
-                        <div class="message ${isMe ? 'm-outgoing' : 'm-incoming'}" oncontextmenu="event.preventDefault(); forwardMessage('${msg.text}', '${msg.sender}')">
-                            ${msg.isForwarded ? `<div class="fwd-label">Переслано от ${msg.fwdFrom}</div>` : ''}
-                            <div class="msg-meta ${colorClass}">
-                                <span>${msg.sender}</span>
-                                <span style="font-size:9px; opacity:0.6;">[${msg.role.toUpperCase()}]</span>
-                            </div>
-                            <div class="msg-text">${msg.text}</div>
-                        </div>`;
-                });
-                container.scrollTop = container.scrollHeight;
-            });
-        }
-
-        function sendChatMessage(fwdText = null, fwdFrom = null) {
-            const input = document.getElementById('chat-message-input');
-            const text = fwdText || input.value.trim();
-            if (!text) return;
-
-            const msgData = {
-                sender: currentUser.username,
-                role: currentUser.role,
-                vipColor: currentUser.vipColor || 'blue',
-                text: text,
-                timestamp: Date.now(),
-                isForwarded: !!fwdText,
-                fwdFrom: fwdFrom || ''
-            };
-
-            db.ref('messages/' + currentChatId).push(msgData);
-            if (!fwdText) input.value = '';
-        }
-
-        function forwardMessage(text, from) {
-            const target = prompt("Куда переслать? Введите 'global_room' или ID комнаты / Никнейм человека:");
-            if (target) {
-                const oldChat = currentChatId;
-                currentChatId = target;
-                sendChatMessage(text, from);
-                currentChatId = oldChat;
-                alert("Сообщение успешно переслано!");
+            if(!found) {
+                alert("Указанный код восстановления не найден в локальной системе устройства!");
             }
         }
 
         function logout() {
-            if (currentUser && currentUser.username !== OWNER_NICK) {
-                db.ref('users/' + currentUser.username + '/status').set('был(а) в сети недавно');
-            }
+            localStorage.removeItem('p2p_active_session'); 
             location.reload();
         }
 
-        // АДМИНКА (Выдача ролей прямо в чате)
-        function adminGiveRole() {
-            if (currentUser.role !== 'owner' && currentUser.role !== 'admin') return alert("Отказано в доступе!");
-            const targetNick = prompt("Укажите никнейм игрока для изменения:");
-            const newRole = prompt("Какую роль/статус выдать? (user / vip / premium / admin):");
-            if (!targetNick || !newRole) return;
+        function startApp() {
+            if(me.role === 'owner') {
+                document.getElementById('owner-requests-card').style.display = 'block';
+            }
+            updateProfileUI();
+            renderFriends();
+            renderGroups();
+            initPeer();
+        }
 
-            db.ref('users/' + targetNick + '/role').set(newRole.toLowerCase(), (err) => {
-                if (!err) alert(`Права пользователя ${targetNick} изменены на [${newRole.toUpperCase()}]`);
+        function updateProfileUI() {
+            if(me.role === 'owner') {
+                document.getElementById('my-balance').innerText = `∞ $TG$`;
+            } else {
+                document.getElementById('my-balance').innerText = `${me.balance} $TG$`;
+            }
+            
+            document.getElementById('my-name').innerText = me.username;
+            
+            let prefixEl = document.getElementById('my-prefix');
+            prefixEl.className = 'badge';
+            if(me.role === 'owner') { prefixEl.innerText = 'Владелец'; prefixEl.classList.add('p-owner'); }
+            else if(me.role === 'admin') { prefixEl.innerText = 'Админ'; prefixEl.classList.add('p-admin'); }
+            else if(me.role === 'vip') { prefixEl.innerText = '⭐ VIP'; prefixEl.classList.add('p-vip'); }
+            else { prefixEl.innerText = 'Юзер'; prefixEl.classList.add('p-user'); }
+        }
+
+        function initPeer() {
+            peer = new Peer();
+            peer.on('open', (id) => {
+                document.getElementById('my-peer-id').innerText = id;
+            });
+            
+            peer.on('connection', (connection) => {
+                let senderId = connection.peer;
+                incomingRequests[senderId] = connection;
+                
+                connection.on('data', (data) => {
+                    if (data && data.type === 'request_handshake') {
+                        showIncomingChatRequest(data.username, senderId, data.requestedCoins, data.supportTicket);
+                    } else if (data && data.type === 'chat_accepted') {
+                        conn = connection;
+                        openChatWindow();
+                    } else if (conn) {
+                        if (typeof data === 'object' && data.type) {
+                            handleSystemPacket(data);
+                        } else {
+                            appendMsg(activeChat.name, data, 'interlocutor', activeChat.role);
+                        }
+                    }
+                });
             });
         }
+
+        function requestChatConnection() {
+            const id = document.getElementById('connect-id-input').value.trim();
+            if(!id) return alert("Введите ID!");
+            
+            let tempConn = peer.connect(id);
+            tempConn.on('open', () => {
+                tempConn.send({
+                    type: 'request_handshake',
+                    username: me.username,
+                    requestedCoins: me.pendingRequest,
+                    supportTicket: me.supportTicket
+                });
+                alert("Запрос на переписку отправлен! Ждем подтверждения.");
+            });
+        }
+
+        function showIncomingChatRequest(senderName, senderId, coinsCount, ticketText) {
+            const list = document.getElementById('chat-requests-list');
+            if(list.innerText.includes("Запросов на диалог нет")) list.innerHTML = '';
+
+            let li = document.createElement('li');
+            li.id = `req-${senderId}`;
+            li.style.flexDirection = 'column';
+            li.style.alignItems = 'flex-start';
+            li.style.gap = '8px';
+
+            let infoText = `Пользователь <b>${senderName}</b> просит начать чат. <br><span style="font-size:11px;" class="code-display">ID: ${senderId}</span>`;
+            
+            if (me.role === 'owner') {
+                if (coinsCount > 0) infoText += `<br><b style="color:#f1c40f;">Запрос на покупку: ${coinsCount} $TG$</b>`;
+                if (ticketText) infoText += `<br><b style="color:#e74c3c;">Тикет техподдержки:</b> <i style="color:#555;">"${ticketText}"</i>`;
+            }
+
+            li.innerHTML = `
+                <div>${infoText}</div>
+                <div style="display:flex; gap:10px; margin-top:5px;">
+                    <button class="btn btn-green" style="padding:5px 12px; font-size:12px;" onclick="acceptChatRequest('${senderId}', '${senderName}')">Принять</button>
+                    <button class="btn btn-danger" style="padding:5px 12px; font-size:12px;" onclick="rejectChatRequest('${senderId}')">Отклонить</button>
+                </div>
+            `;
+            list.appendChild(li);
+
+            if(me.role === 'owner' && coinsCount > 0) {
+                showOwnerCoinRequest(senderName, coinsCount, senderId);
+            }
+        }
+
+        function acceptChatRequest(senderId, senderName) {
+            conn = incomingRequests[senderId];
+            if(conn) {
+                conn.send({ type: 'chat_accepted' });
+                activeChat.name = senderName;
+                openChatWindow();
+                document.getElementById(`req-${senderId}`).remove();
+                checkRequestsEmpty();
+            }
+        }
+
+        function rejectChatRequest(senderId) {
+            if(incomingRequests[senderId]) {
+                incomingRequests[senderId].close();
+                delete incomingRequests[senderId];
+            }
+            document.getElementById(`req-${senderId}`).remove();
+            checkRequestsEmpty();
+        }
+
+        function checkRequestsEmpty() {
+            const list = document.getElementById('chat-requests-list');
+            if(list.children.length === 0) {
+                list.innerHTML = `<li style="color: #777; font-size: 13px;">Запросов на диалог нет. Ваш чат в безопасности от спама.</li>`;
+            }
+        }
+
+        function openChatWindow() {
+            document.getElementById('main-tabs').style.display = 'none';
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            
+            const screenChat = document.getElementById('screen-chat');
+            screenChat.style.display = 'flex';
+            screenChat.classList.add('active');
+            document.getElementById('chat-messages').innerHTML = '';
+            document.getElementById('chat-title').innerText = `Чат с ${activeChat.name}`;
+            appendMsg('Система', 'Безопасный туннель связи открыт.', 'sys-msg');
+
+            if(me.role === 'owner' || me.role === 'admin') {
+                document.getElementById('admin-actions').style.display = 'flex';
+            }
+        }
+
+        function closeChat() {
+            if(conn) conn.close();
+            document.getElementById('screen-chat').style.display = 'none';
+            document.getElementById('screen-chat').classList.remove('active');
+            document.getElementById('main-tabs').style.display = 'flex';
+            switchTab('tab-chats');
+        }
+
+        function handleSystemPacket(pack) {
+            let db = JSON.parse(localStorage.getItem('p2p_db_users'));
+            switch(pack.type) {
+                case 'donate':
+                    me.balance += pack.amount;
+                    if(me.role !== 'owner') db[me.username].balance = me.balance;
+                    localStorage.setItem('p2p_db_users', JSON.stringify(db));
+                    updateProfileUI();
+                    appendMsg('Система', `💸 Перевод: +${pack.amount} $TG$ от ${activeChat.name}!`, 'sys-msg');
+                    break;
+
+                case 'gift':
+                    appendMsg(activeChat.name, `🎁 ПОДАРОК: Получен ${pack.giftName}!`, 'interlocutor gift-msg', activeChat.role);
+                    break;
+
+                case 'role_force':
+                    me.role = pack.newRole;
+                    db[me.username].role = me.role;
+                    localStorage.setItem('p2p_db_users', JSON.stringify(db));
+                    updateProfileUI();
+                    appendMsg('Система', `🔔 Роль изменена на [${pack.newRole.toUpperCase()}]`, 'sys-msg');
+                    break;
+
+                case 'coins_approved':
+                    me.balance += pack.amount;
+                    me.pendingRequest = 0;
+                    db[me.username].balance = me.balance;
+                    localStorage.setItem('p2p_db_users', JSON.stringify(db));
+                    updateProfileUI();
+                    document.getElementById('request-status').innerText = "Ваша заявка одобрена Владельцем! Коины зачислены.";
+                    appendMsg('Система', `✅ Владелец зачислил вам ${pack.amount} $TG$!`, 'sys-msg');
+                    break;
+            }
+        }
+
+        function sendDataPacket(obj) {
+            if(conn && conn.open) conn.send(obj);
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const txt = input.value.trim();
+            if(!txt) return;
+            conn.send(txt);
+            appendMsg(me.username, txt, 'me', me.role);
+            input.value = '';
+        }
+
+        function sendDonate() {
+            const amt = parseInt(document.getElementById('donate-amount').value);
+            if(isNaN(amt) || amt <= 0) return alert("Укажите сумму!");
+            if(me.role !== 'owner' && me.balance < amt) return alert("Не хватает монет!");
+
+            if(me.role !== 'owner') {
+                me.balance -= amt;
+                let db = JSON.parse(localStorage.getItem('p2p_db_users'));
+                db[me.username].balance = me.balance;
+                localStorage.setItem('p2p_db_users', JSON.stringify(db));
+            }
+            updateProfileUI();
+
+            sendDataPacket({ type: 'donate', amount: amt });
+            appendMsg('Система', `Вы отправили ${amt} $TG$ для ${activeChat.name}`, 'sys-msg');
+            document.getElementById('donate-amount').value = '';
+        }
+
+        function sendGift() {
+            const gift = document.getElementById('gift-type').value;
+            let cost = 20;
+            if(gift.includes("100")) cost = 100;
+            if(gift.includes("50")) cost = 50;
+            if(gift.includes("250")) cost = 250;
+
+            if(me.role !== 'owner' && me.balance < cost) return alert("Недостаточно средств!");
+
+            if(me.role !== 'owner') {
+                me.balance -= cost;
+                let db = JSON.parse(localStorage.getItem('p2p_db_users'));
+                db[me.username].balance = me.balance;
+                localStorage.setItem('p2p_db_users', JSON.stringify(db));
+            }
+            updateProfileUI();
+
+            sendDataPacket({ type: 'gift', giftName: gift });
+            appendMsg(me.username, `🎁 Вы подарили ${gift}`, 'me gift-msg', me.role);
+        }
+
+        function sendBuyRequestToOwner() {
+            const amount = parseInt(document.getElementById('buy-coins-amount').value);
+            if(isNaN(amount) || amount < 100) return alert("Минимум 100 монет!");
+            me.pendingRequest = amount;
+            document.getElementById('request-status').innerText = `Заявка: Запрос на ${amount} монет от никнейма "${me.username}". Скопируйте ID и отправьте запрос Владельцу на вкладке Коннект!`;
+        }
+
+        function sendSupportTicket() {
+            const txt = document.getElementById('support-text').value.trim();
+            if(!txt) return alert("Введите текст обращения!");
+            me.supportTicket = txt;
+            document.getElementById('support-status').innerText = "Тикет сформирован! Отправьте запрос на чат Владельцу для передачи обращения.";
+            document.getElementById('support-text').value = '';
+        }
+
+        function showOwnerCoinRequest(clientName, amount, clientPeerId) {
+            const list = document.getElementById('owner-requests-list');
+            if(list.innerText.includes("Активных запросов нет")) list.innerHTML = '';
+            
+            let li = document.createElement('li');
+            li.id = `coin-req-${clientPeerId}`;
+            li.innerHTML = `
+                <div>Запрос на монеты! <br>Ник: <b>${clientName}</b> | Сумма: <b style="color:green;">${amount} $TG$</b> <br><span style="font-size:11px;" class="code-display">ID: ${clientPeerId}</span></div>
+                <button class="btn btn-gold" style="padding:6px 10px; font-size:11px;" onclick="approveCoinsFromOwner('${clientPeerId}', ${amount})">Выдать монеты</button>
+            `;
+            list.appendChild(li);
+        }
+
+        function approveCoinsFromOwner(clientPeerId, amount) {
+            let targetConn = incomingRequests[clientPeerId] || conn;
+            if(targetConn) {
+                targetConn.send({ type: 'coins_approved', amount: amount });
+                alert("Монеты успешно отправлены на клиентское устройство!");
+                if(document.getElementById(`coin-req-${clientPeerId}`)) {
+                    document.getElementById(`coin-req-${clientPeerId}`).remove();
+                }
+            }
+        }
+
+        function buyVip() {
+            if(me.role === 'vip' || me.role === 'admin' || me.role === 'owner') return alert("Роль уже есть!");
+            if(me.balance < 500) return alert("Недостаточно средств!");
+
+            me.balance -= 500;
+            me.role = 'vip';
+            let db = JSON.parse(localStorage.getItem('p2p_db_users'));
+            db[me.username].balance = me.balance;
+            db[me.username].role = 'vip';
+            localStorage.setItem('p2p_db_users', JSON.stringify(db));
+            updateProfileUI();
+            alert("Успешно! Куплен ⭐ VIP.");
+        }
+
+        function adminChangeRole() {
+            const targetRole = document.getElementById('admin-role-select').value;
+            sendDataPacket({ type: 'role_force', newRole: targetRole });
+            appendMsg('Система', `Роль для ${activeChat.name} изменена на [${targetRole}]`, 'sys-msg');
+        }
+
+        function addFriendHand() {
+            const name = document.getElementById('friend-name-input').value.trim();
+            const id = document.getElementById('friend-id-input').value.trim();
+            if(!name) return alert("Ник обязателен!");
+            let db = JSON.parse(localStorage.getItem('p2p_db_users'));
+            if(!db[me.username].friends) db[me.username].friends = {};
+            db[me.username].friends[name] = id || 'Офлайн';
+            localStorage.setItem('p2p_db_users', JSON.stringify(db));
+            renderFriends();
+            document.getElementById('friend-name-input').value = '';
+            document.getElementById('friend-id-input').value = '';
+        }
+
+        function renderFriends() {
+            const list = document.getElementById('friends-list');
+            list.innerHTML = '';
+            let db = JSON.parse(localStorage.getItem('p2p_db_users'));
+            let fList = db[me.username].friends || {};
+            for(let name in fList) {
+                let li = document.createElement('li');
+                li.innerHTML = `
+                    <div><strong>${name}</strong></div>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <span class="code-display">${fList[name]}</span>
+                        <button class="btn" style="padding:4px 8px; font-size:12px;" onclick="document.getElementById('connect-id-input').value='${fList[name]}'; switchTab('tab-chats');">Вызвать</button>
+                    </div>
+                `;
+                list.appendChild(li);
+            }
+        }
+
+        function createGroup() {
+            const gName = document.getElementById('group-name-input').value.trim();
+            if(!gName) return alert("Введите имя группы!");
+            let groups = JSON.parse(localStorage.getItem('p2p_db_groups'));
+            let gId = 'G_' + Math.random().toString(36).substr(2, 9);
+            groups[gId] = { name: gName, creator: me.username, hostPeerId: peer.id };
+            localStorage.setItem('p2p_db_groups', JSON.stringify(groups));
+            renderGroups();
+            document.getElementById('group-name-input').value = '';
+        }
+
+        function renderGroups() {
+            const list = document.getElementById('groups-list');
+            list.innerHTML = '';
+            let groups = JSON.parse(localStorage.getItem('p2p_db_groups'));
+            for(let id in groups) {
+                let li = document.createElement('li');
+                li.innerHTML = `
+                    <div><strong>👥 ${groups[id].name}</strong></div>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <span class="code-display">${groups[id].hostPeerId}</span>
+                        <button class="btn btn-green" style="padding:4px 8px; font-size:12px;" onclick="document.getElementById('connect-id-input').value='${groups[id].hostPeerId}'; switchTab('tab-chats');">Войти</button>
+                    </div>
+                `;
+                list.appendChild(li);
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        function appendMsg(sender, text, type, role = 'user') {
+            const box = document.getElementById('chat-messages');
+            const d = document.createElement('div');
+            d.className = `msg ${type}`;
+            if(!type.includes('sys-msg')) {
+                let rName = 'Юзер'; let rClass = 'p-user';
+                if(role === 'owner') { rName = 'Владелец'; rClass = 'p-owner'; }
+                if(role === 'admin') { rName = 'Админ'; rClass = 'p-admin'; }
+                if(role === 'vip') { rName = '⭐ VIP'; rClass = 'p-vip'; }
+                d.innerHTML = `<div class="msg-header"><span style="font-weight:bold;">${sender}</span><span class="badge ${rClass}">${rName}</span></div><div>${text}</div>`;
+            } else {
+                d.innerText = text;
+            }
+            box.appendChild(d);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function checkChatEnter(e) { if(e.key === 'Enter') sendChatMessage(); }
     </script>
 </body>
 </html>

@@ -3,231 +3,409 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Групповой P2P Мессенджер</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <title>Advanced TG Messenger</title>
+    <!-- Подключаем Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background: #f0f2f5; display: flex; flex-direction: column; height: 100vh; color: #333; }
+        :root {
+            --tg-theme: #2481cc;
+            --bg-main: #0e1621;
+            --bg-dark: #17212b;
+            --bg-active: #2b5278;
+            --text-main: #f5f5f5;
+            --text-muted: #7f91a4;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background: var(--bg-main); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
+
+        /* Окно авторизации (сделано как стандартная форма для сохранения паролей браузером) */
+        .auth-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-main); display: flex; justify-content: center; align-items: center; z-index: 100; }
+        .auth-form { background: var(--bg-dark); padding: 30px; border-radius: 10px; width: 100%; max-width: 360px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        .auth-form h2 { text-align: center; margin-bottom: 20px; color: var(--tg-theme); }
+        .auth-form input, .auth-form select { width: 100%; padding: 12px; margin-bottom: 15px; background: var(--bg-main); border: 1px solid #2f3844; border-radius: 6px; color: white; font-size: 16px; }
+        .auth-form button { width: 100%; padding: 12px; background: var(--tg-theme); border: none; border-radius: 6px; color: white; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .auth-form .toggle-type { text-align: center; color: var(--text-muted); margin-top: 15px; cursor: pointer; font-size: 14px; }
+
+        /* Главный интерфейс а-ля Telegram */
+        .sidebar { width: 320px; background: var(--bg-dark); border-right: 1px solid #101921; display: flex; flex-direction: column; }
+        .sb-header { padding: 15px; border-bottom: 1px solid #101921; }
+        .search-bar { width: 100%; padding: 8px 12px; background: var(--bg-main); border: 1px solid #24303f; border-radius: 20px; color: white; outline: none; }
         
-        /* Экраны авторизации */
-        .modal-bg { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index: 10; }
-        .auth-card { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); text-align: center; }
-        .auth-card h2 { margin-bottom: 15px; color: #075e54; }
-        .auth-card input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
-        .auth-card button { width: 100%; padding: 12px; background: #128c7e; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
-        .auth-card button:hover { background: #075e54; }
-
-        /* Шапка чата */
-        header { background: #075e54; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .user-info { font-size: 14px; }
-        .room-info { font-weight: bold; font-size: 16px; background: #128c7e; padding: 5px 12px; border-radius: 15px; }
-
-        /* Окно чата */
-        #chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #e5ddd5; }
-        .msg { max-width: 75%; padding: 10px 14px; border-radius: 8px; font-size: 15px; word-break: break-word; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        .msg .sender { font-size: 11px; font-weight: bold; color: #128c7e; margin-bottom: 3px; block; }
-        .me { background: #dcf8c6; align-self: flex-end; }
-        .interlocutor { background: white; align-self: flex-start; }
-        .system { background: #fff3cd; color: #856404; align-self: center; font-size: 12px; box-shadow: none; }
-
-        /* Поле ввода */
-        footer { background: #f0f0f0; padding: 12px; display: flex; gap: 10px; border-top: 1px solid #ddd; }
-        footer input { flex: 1; border: 1px solid #ccc; border-radius: 24px; padding: 12px 20px; font-size: 15px; outline: none; }
-        footer button { background: #128c7e; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; }
-        footer button:hover { background: #075e54; }
+        .chat-list { flex: 1; overflow-y: auto; }
+        .chat-item { padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-bottom: 1px solid #101921; }
+        .chat-item:hover, .chat-item.active { background: var(--bg-active); }
         
+        .main-chat { flex: 1; display: flex; flex-direction: column; background: #0e1621; }
+        .chat-header { height: 60px; background: var(--bg-dark); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #101921; }
+        .chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        
+        /* Стилизация сообщений по ролям и цветам */
+        .message { max-width: 65%; padding: 10px 14px; border-radius: 8px; position: relative; display: flex; flex-direction: column; }
+        .msg-meta { font-size: 11px; font-weight: bold; margin-bottom: 3px; display: flex; gap: 5px; align-items: center; }
+        .msg-text { word-break: break-word; font-size: 15px; }
+        .fwd-label { font-size: 11px; color: var(--text-muted); font-style: italic; margin-bottom: 2px; }
+
+        /* Цвета ролей */
+        .role-owner { color: #ffd700 !important; } /* Владелец - золотой */
+        .role-admin { color: #ff4d4d !important; } /* Админ - красный */
+        .role-premium { color: #b388ff !important; } /* Премиум - фиолетовый */
+        .role-vip-blue { color: #33b5e5 !important; } /* VIP синий */
+        .role-vip-green { color: #00c851 !important; } /* VIP зеленый */
+        .role-user { color: #aab8c2 !important; }
+
+        .m-incoming { background: #182533; align-self: flex-start; }
+        .m-outgoing { background: #2b5278; align-self: flex-end; }
+
+        .chat-input-area { padding: 15px; background: var(--bg-dark); display: flex; gap: 10px; }
+        .chat-input-area input { flex: 1; padding: 12px; background: var(--bg-main); border: 1px solid #24303f; border-radius: 8px; color: white; outline: none; }
+        .chat-input-area button { padding: 0 20px; background: var(--tg-theme); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; }
+
+        /* Панель управления Владельца / Админа */
+        .admin-panel { background: #202b36; padding: 10px; display: flex; gap: 10px; align-items: center; justify-content: space-around; font-size: 13px; }
+        .btn-action { padding: 4px 10px; background: #c62828; border: none; border-radius: 4px; color: white; cursor: pointer; }
+
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-    <!-- Шаг 1: Регистрация Юзера -->
-    <div id="reg-screen" class="modal-bg">
-        <div class="auth-card">
-            <h2>Регистрация</h2>
-            <p>Придумайте никнейм для общения</p>
-            <input type="text" id="username-input" placeholder="Ваше имя / Никнейм">
-            <button onclick="registerUser()">Войти</button>
+    <!-- ЭКРАН ВХОДА / РЕГИСТРАЦИИ -->
+    <div id="auth-screen" class="auth-overlay">
+        <!-- autocomplete="on" заставляет браузер предлагать сохранение пароля -->
+        <form class="auth-form" id="main-auth-form" autocomplete="on" onsubmit="handleAuth(event)">
+            <h2 id="auth-title">Войти в Telegram</h2>
+            
+            <input type="text" id="auth-username" name="username" placeholder="Имя пользователя (Никнейм)" required autocomplete="username">
+            <input type="password" id="auth-password" name="password" placeholder="Пароль" required autocomplete="current-password">
+            
+            <!-- Поля, видимые только при регистрации -->
+            <div id="reg-fields" class="hidden">
+                <label style="font-size:12px; color:var(--text-muted)">Роль (для теста лимитов):</label>
+                <select id="auth-role" onchange="toggleVipColors()">
+                    <option value="user">Обычный юзер (Лимит: 1 акк на IP)</option>
+                    <option value="vip">VIP роль (Лимит: 3 акка на IP)</option>
+                    <option value="premium">Premium роль</option>
+                </select>
+                
+                <div id="vip-color-selector" class="hidden">
+                    <label style="font-size:12px; color:var(--text-muted)">Цвет вашего ника (Только для VIP):</label>
+                    <select id="auth-vip-color">
+                        <option value="blue">Синий цвет</option>
+                        <option value="green">Зеленый цвет</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" id="auth-btn">Войти</button>
+            <div class="toggle-type" id="auth-toggle" onclick="toggleAuthMode()">Нет аккаунта? Зарегистрироваться</div>
+        </form>
+    </div>
+
+    <!-- ЛЕВАЯ ПАНЕЛЬ (СПИСОК ГРУПП И ПОИСК ИГРОКОВ) -->
+    <div class="sidebar">
+        <div class="sb-header">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px;">
+                <span id="my-profile-name">Загрузка...</span>
+                <span style="color:var(--text-muted); cursor:pointer;" onclick="logout()">Выйти ➔</span>
+            </div>
+            <input type="text" class="search-bar" id="search-input" placeholder="Поиск игрока или группы..." oninput="filterList()">
+            <button onclick="createNewGroup()" style="width:100%; margin-top:8px; padding:6px; background:#2b5278; border:none; border-radius:4px; color:white; font-size:12px; cursor:pointer;">+ Создать группу/канал</button>
+        </div>
+        <div class="chat-list" id="chat-list-container">
+            <!-- Сюда рендерятся комнаты и игроки -->
         </div>
     </div>
 
-    <!-- Шаг 2: Выбор или создание группы -->
-    <div id="group-screen" class="modal-bg hidden">
-        <div class="auth-card">
-            <h2>Групповые комнаты</h2>
-            <p>Введите название группы, чтобы создать её или войти</p>
-            <input type="text" id="room-input" placeholder="Например: family-chat-2026">
-            <button onclick="joinGroup()">Войти в группу</button>
+    <!-- ОСНОВНОЙ ЭКРАН ЧАТА -->
+    <div class="main-chat">
+        <!-- Панель Администратора / Владельца -->
+        <div id="admin-bar" class="admin-panel hidden">
+            <span>👑 Панель управления:</span>
+            <button class="btn-action" onclick="adminCreateAccount()">Создать аккаунт админу</button>
+            <button class="btn-action" style="background:#1565c0" onclick="adminGiveRole()">Выдать VIP/Админку</button>
+        </div>
+
+        <div class="chat-header">
+            <div>
+                <h3 id="current-chat-title">Выберите чат</h3>
+                <span id="current-chat-status" style="font-size:12px; color:var(--text-muted)"></span>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chat-messages-container">
+            <!-- Сообщения -->
+        </div>
+
+        <div class="chat-input-area">
+            <input type="text" id="chat-message-input" placeholder="Напишите сообщение..." onkeypress="if(event.key==='Enter') sendChatMessage()">
+            <button onclick="sendChatMessage()">Отправить</button>
         </div>
     </div>
-
-    <!-- Основной экран чата -->
-    <header>
-        <div class="user-info">Вы: <strong id="display-name">...</strong></div>
-        <div class="room-info" id="display-room">Комната</div>
-    </header>
-
-    <div id="chat-box">
-        <div class="msg system">Добро пожаловать в групповой P2P чат!</div>
-    </div>
-
-    <footer>
-        <input type="text" id="message-input" placeholder="Напишите сообщение..." onkeypress="checkEnter(event)">
-        <button onclick="sendMessage()">➔</button>
-    </footer>
 
     <script>
-        let myUsername = localStorage.getItem('chat_username') || '';
-        let currentRoom = '';
-        let peer = null;
-        let connections = []; // Здесь хранятся активные участники группы
-
-        // Проверяем, зарегистрирован ли уже юзер
-        window.onload = () => {
-            if (myUsername) {
-                document.getElementById('reg-screen').classList.add('hidden');
-                document.getElementById('group-screen').classList.remove('hidden');
-                document.getElementById('display-name').innerText = myUsername;
-            }
+        // !!! ВСТАВЬТЕ СЮДА ВАШИ ДАННЫЕ ИЗ КОНСОЛИ FIREBASE !!!
+        const firebaseConfig = {
+            apiKey: "AIzaSyYourActualApiKeyHere",
+            authDomain: "your-app.firebaseapp.com",
+            databaseURL: "https://your-app-default-rtdb.firebaseio.com",
+            projectId: "your-app",
+            storageBucket: "your-app.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:12345:web:12345"
         };
+        
+        // Инициализация
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-        // 1. Регистрация пользователя
-        function registerUser() {
-            const input = document.getElementById('username-input').value.trim();
-            if (!input) return alert('Введите корректный никнейм!');
-            
-            myUsername = input;
-            localStorage.setItem('chat_username', myUsername); // сохраняем в браузере
-            document.getElementById('display-name').innerText = myUsername;
-            
-            document.getElementById('reg-screen').classList.add('hidden');
-            document.getElementById('group-screen').classList.remove('hidden');
+        let isLoginMode = true;
+        let currentUser = null;
+        let currentChatId = "global_room";
+        let userIp = "127.0.0.1";
+
+        // Получаем IP пользователя при загрузке страницы
+        fetch('https://api.ipify.org?format=json')
+            .then(res => res.json())
+            .then(data => userIp = data.ip)
+            .catch(() => userIp = "127.0.0.1");
+
+        // Вшитый аккаунт владельца
+        const OWNER_NICK = "неон";
+        const OWNER_PASS = "qwsder";
+
+        function toggleAuthMode() {
+            isLoginMode = !isLoginMode;
+            document.getElementById('auth-title').innerText = isLoginMode ? "Войти в Telegram" : "Регистрация";
+            document.getElementById('auth-btn').innerText = isLoginMode ? "Войти" : "Создать аккаунт";
+            document.getElementById('auth-toggle').innerText = isLoginMode ? "Нет аккаунта? Зарегистрироваться" : "Уже есть аккаунт? Войти";
+            document.getElementById('reg-fields').classList.toggle('hidden', isLoginMode);
         }
 
-        // 2. Подключение к группе (комнате)
-        function joinGroup() {
-            const roomInput = document.getElementById('room-input').value.trim();
-            if (!roomInput) return alert('Введите название группы!');
-            
-            currentRoom = roomInput.toLowerCase();
-            document.getElementById('display-room').innerText = `Группа: ${currentRoom}`;
-            document.getElementById('group-screen').classList.add('hidden');
-
-            // Инициализируем PeerJS. В качестве ID используем комбинацию комнаты и ника
-            // Это позволит участникам одной комнаты находить друг друга по префиксу
-            const uniquePeerId = `p2proom-${currentRoom}-${myUsername}-${Math.floor(Math.random() * 1000)}`;
-            peer = new Peer(uniquePeerId);
-
-            peer.on('open', (id) => {
-                appendMessage('Система', `Вы подключились к комнате как ${myUsername}. Поиск участников...`, 'system');
-                
-                // Ищем других участников в сети (имитируем комнату через сканирование доступных ID на сервере PeerJS)
-                // Для простоты — мы подключаемся к списку активных пиров.
-                // В реальном времени WebRTC запрашивает окружение:
-                discoverPeers();
-            });
-
-            // Ловим входящие подключения от новых участников группы
-            peer.on('connection', (conn) => {
-                handleConnection(conn);
-            });
+        function toggleVipColors() {
+            const role = document.getElementById('auth-role').value;
+            document.getElementById('vip-color-selector').classList.toggle('hidden', role !== 'vip');
         }
 
-        // Автоматический поиск участников в той же комнате
-        function discoverPeers() {
-            // Запрашиваем у облака PeerJS список всех подключений (хак для комнат)
-            peer.listAllPeers((peers) => {
-                peers.forEach((peerId) => {
-                    // Если пир принадлежит нашей комнате и это не мы сами — подключаемся
-                    if (peerId.startsWith(`p2proom-${currentRoom}-`) && peerId !== peer.id) {
-                        let conn = peer.connect(peerId);
-                        handleConnection(conn);
+        // Авторизация и Логика Лимитов по IP
+        function handleAuth(e) {
+            e.preventDefault();
+            const username = document.getElementById('auth-username').value.trim();
+            const password = document.getElementById('auth-password').value.trim();
+            
+            if (!username || !password) return alert("Заполните поля!");
+
+            if (isLoginMode) {
+                // Проверка входа (включая владельца)
+                if (username === OWNER_NICK && password === OWNER_PASS) {
+                    initUser({ username: OWNER_NICK, role: 'owner', vipColor: 'gold' });
+                    return;
+                }
+
+                db.ref('users/' + username).once('value', (snapshot) => {
+                    const user = snapshot.val();
+                    if (user && user.password === password) {
+                        initUser(user);
+                    } else {
+                        alert("Неверный никнейм или пароль!");
                     }
+                });
+            } else {
+                // Регистрация нового аккаунта
+                if (username === OWNER_NICK) return alert("Этот ник зарезервирован владельцем!");
+
+                const selectedRole = document.getElementById('auth-role').value;
+                const vipColor = selectedRole === 'vip' ? document.getElementById('auth-vip-color').value : 'none';
+
+                // Сканируем базу данных на лимиты аккаунтов по текущему IP
+                db.ref('users').once('value', (snapshot) => {
+                    let ipCount = 0;
+                    snapshot.forEach((child) => {
+                        if (child.val().ip === userIp) ipCount++;
+                    });
+
+                    // Проверка жестких правил лимитов
+                    let maxAllowed = 1; // Обычный юзер
+                    if (selectedRole === 'vip') maxAllowed = 3;
+                    if (selectedRole === 'premium') maxAllowed = 5;
+
+                    if (ipCount >= maxAllowed) {
+                        alert(`Превышен лимит аккаунтов для вашего IP! Для вашей роли доступно максимум: ${maxAllowed}`);
+                        return;
+                    }
+
+                    // Сохраняем аккаунт в базу данных
+                    const newUser = { username, password, role: selectedRole, vipColor, ip: userIp, status: "online" };
+                    db.ref('users/' + username).set(newUser, (err) => {
+                        if (!err) {
+                            alert("Регистрация успешна!");
+                            initUser(newUser);
+                        }
+                    });
+                });
+            }
+        }
+
+        function initUser(user) {
+            currentUser = user;
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('my-profile-name').innerText = `${user.username} (${user.role.toUpperCase()})`;
+            
+            // Если зашел владелец или админ — показываем скрытую панель управления
+            if (user.role === 'owner' || user.role === 'admin') {
+                document.getElementById('admin-bar').classList.remove('hidden');
+            }
+
+            // Ставим статус "В сети"
+            if (user.username !== OWNER_NICK) {
+                db.ref('users/' + user.username + '/status').set('online');
+            }
+
+            loadChatList();
+            listenToChat(currentChatId);
+        }
+
+        function logout() {
+            if (currentUser && currentUser.username !== OWNER_NICK) {
+                db.ref('users/' + currentUser.username + '/status').set('был в сети недавно');
+            }
+            location.reload();
+        }
+
+        // Загрузка комнат и Поиск игроков
+        function loadChatList() {
+            db.ref('channels').on('value', (snapshot) => {
+                const container = document.getElementById('chat-list-container');
+                container.innerHTML = `<div class="chat-item active" onclick="switchChat('global_room', 'Общий чат')">🌍 Общий чат</div>`;
+                
+                snapshot.forEach((child) => {
+                    const room = child.val();
+                    container.innerHTML += `<div class="chat-item" onclick="switchChat('${child.key}', '${room.name}')">💬 ${room.name}</div>`;
                 });
             });
         }
 
-        // Обработка логики сообщений и обмена данными
-        function handleConnection(conn) {
-            // Проверяем дубликаты
-            if (connections.find(c => c.peer === conn.peer)) return;
-            
-            connections.push(conn);
+        function createNewGroup() {
+            const name = prompt("Введите название новой группы/канала:");
+            if (!name) return;
+            const roomId = 'room_' + Date.now();
+            db.ref('channels/' + roomId).set({ name: name, creator: currentUser.username });
+        }
 
-            conn.on('open', () => {
-                // Извлекаем имя друга из его ID
-                const parts = conn.peer.split('-');
-                const friendName = parts[2] || 'Участник';
-                appendMessage('Система', `${friendName} вошел в чат`, 'system');
-            });
+        // Поиск игроков и фильтрация списка (из ТГ)
+        function filterList() {
+            const query = document.getElementById('search-input').value.trim().toLowerCase();
+            if (query.length > 2) {
+                // Ищем игроков прямо в базе данных
+                db.ref('users').orderByKey().startAt(query).endAt(query + "\uf8ff").once('value', (snapshot) => {
+                    const container = document.getElementById('chat-list-container');
+                    snapshot.forEach((child) => {
+                        if (child.key !== currentUser.username) {
+                            container.innerHTML += `<div class="chat-item" style="border-left: 2px solid #4caf50;" onclick="switchChat('${child.key}', 'ЛС: ${child.key}')">👤 ${child.key} (${child.val().status})</div>`;
+                        }
+                    });
+                });
+            }
+        }
 
-            conn.on('data', (data) => {
-                // Получаем объект { sender: 'Ник', text: 'Привет' }
-                if (data.sender && data.text) {
-                    appendMessage(data.sender, data.text, 'interlocutor');
-                }
-            });
+        function switchChat(id, title) {
+            currentChatId = id;
+            document.getElementById('current-chat-title').innerText = title;
+            listenToChat(id);
+        }
 
-            conn.on('close', () => {
-                connections = connections.filter(c => c.peer !== conn.peer);
-                const parts = conn.peer.split('-');
-                const friendName = parts[2] || 'Участник';
-                appendMessage('Система', `${friendName} покинул чат`, 'system');
+        // Чтение и отправка сообщений с кастомизацией
+        function listenToChat(id) {
+            db.ref('messages/' + id).off();
+            db.ref('messages/' + id).limitToLast(50).on('value', (snapshot) => {
+                const container = document.getElementById('chat-messages-container');
+                container.innerHTML = '';
+                
+                snapshot.forEach((child) => {
+                    const msg = child.val();
+                    const isMe = msg.sender === currentUser.username;
+                    
+                    let roleClass = 'role-user';
+                    if (msg.role === 'owner') roleClass = 'role-owner';
+                    else if (msg.role === 'admin') roleClass = 'role-admin';
+                    else if (msg.role === 'premium') roleClass = 'role-premium';
+                    else if (msg.role === 'vip') {
+                        roleClass = msg.vipColor === 'green' ? 'role-vip-green' : 'role-vip-blue';
+                    }
+
+                    container.innerHTML += `
+                        <div class="message ${isMe ? 'm-outgoing' : 'm-incoming'}" oncontextmenu="event.preventDefault(); forwardMessage('${msg.text}', '${msg.sender}')">
+                            ${msg.isForwarded ? `<div class="fwd-label">Переслано от ${msg.fwdFrom}</div>` : ''}
+                            <div class="msg-meta ${roleClass}">
+                                <span>${msg.sender}</span> 
+                                <span style="font-size:9px; color:gray;">[${msg.role.toUpperCase()}]</span>
+                            </div>
+                            <div class="msg-text">${msg.text}</div>
+                        </div>
+                    `;
+                });
+                container.scrollTop = container.scrollHeight;
             });
         }
 
-        // 3. Отправка сообщения ВСЕМ участникам группы
-        function sendMessage() {
-            const msgInput = document.getElementById('message-input');
-            const text = msgInput.value.trim();
+        function sendChatMessage(fwdText = null, fwdFrom = null) {
+            const input = document.getElementById('chat-message-input');
+            const text = fwdText || input.value.trim();
             if (!text) return;
 
-            const messageData = {
-                sender: myUsername,
-                text: text
+            const msgData = {
+                sender: currentUser.username,
+                role: currentUser.role,
+                vipColor: currentUser.vipColor || 'none',
+                text: text,
+                timestamp: Date.now(),
+                isForwarded: fwdText ? true : false,
+                fwdFrom: fwdFrom || ''
             };
 
-            // Рассылаем сообщение каждому, кто сейчас в нашей группе
-            connections.forEach(conn => {
-                if (conn.open) {
-                    conn.send(messageData);
-                }
+            db.ref('messages/' + currentChatId).push(msgData);
+            if (!fwdText) input.value = '';
+        }
+
+        // Контекстная функция Telegram: Переслать сообщение (Вызывается по правому клику мыши на сообщение)
+        function forwardMessage(text, from) {
+            const target = prompt("Введите имя комнаты или ник игрока, куда переслать сообщение:");
+            if (target) {
+                const oldChat = currentChatId;
+                currentChatId = target;
+                sendChatMessage(text, from);
+                currentChatId = oldChat;
+                alert("Сообщение переслано!");
+            }
+        }
+
+        // АДМИН-ФУНКЦИИ (Доступны только "неон" и назначенным админам)
+        function adminCreateAccount() {
+            if (currentUser.role !== 'owner' && currentUser.role !== 'admin') return alert("Нет прав!");
+            const targetNick = prompt("Введите ник нового админа:");
+            const targetPass = prompt("Введите пароль для админа:");
+            if (!targetNick || !targetPass) return;
+
+            db.ref('users/' + targetNick).set({
+                username: targetNick,
+                password: targetPass,
+                role: 'admin',
+                vipColor: 'none',
+                ip: 'создан_админом',
+                status: 'offline'
             });
-
-            appendMessage('Вы', text, 'me');
-            msgInput.value = '';
+            alert(`Аккаунт админа ${targetNick} успешно создан!`);
         }
 
-        // Отрисовка сообщений в интерфейсе
-        function appendMessage(sender, text, type) {
-            const chatBox = document.getElementById('chat-box');
-            const msgDiv = document.createElement('div');
-            msgDiv.classList.add('msg', type);
+        function adminGiveRole() {
+            if (currentUser.role !== 'owner' && currentUser.role !== 'admin') return alert("Нет прав!");
+            const targetNick = prompt("Введите ник игрока:");
+            const newRole = prompt("Какую роль выдать? (vip / premium / admin):");
+            if (!targetNick || !newRole) return;
 
-            if (type !== 'system') {
-                const senderSpan = document.createElement('span');
-                senderSpan.classList.add('sender');
-                senderSpan.innerText = sender;
-                msgDiv.appendChild(senderSpan);
-            }
-
-            const textNode = document.createTextNode(text);
-            msgDiv.appendChild(textNode);
-            
-            chatBox.appendChild(msgDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
+            db.ref('users/' + targetNick + '/role').set(newRole);
+            alert(`Роль игрока ${targetNick} изменена на ${newRole}!`);
         }
-
-        function checkEnter(e) {
-            if (e.key === 'Enter') sendMessage();
-        }
-
-        // Раз в 7 секунд ищем новых людей, кто зашел в эту же комнату
-        setInterval(() => {
-            if (peer && !peer.destroyed) {
-                discoverPeers();
-            }
-        }, 7000);
     </script>
 </body>
 </html>

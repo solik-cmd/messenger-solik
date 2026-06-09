@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Мессенджер</title>
+    <!-- Подключаем библиотеку PeerJS для связи без сервера -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        body { background: #e5ddd5; display: flex; flex-direction: column; height: 100vh; }
+        
+        /* Панель подключения */
+        header { background: #075e54; color: white; padding: 15px; text-align: center; font-size: 14px; }
+        .connect-box { margin-top: 10px; display: flex; gap: 5px; justify-content: center; }
+        input, button { padding: 8px; border: none; border-radius: 4px; font-size: 14px; }
+        button { background: #128c7e; color: white; cursor: pointer; font-weight: bold; }
+        button:hover { background: #14a090; }
+
+        /* Окно чата */
+        #chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg { max-width: 75%; padding: 8px 12px; border-radius: 8px; font-size: 15px; word-break: break-word; }
+        .me { background: #dcf8c6; align-self: flex-end; }
+        .interlocutor { background: white; align-self: flex-start; }
+        .system { background: #fff3cd; color: #856404; align-self: center; font-size: 12px; }
+
+        /* Поле ввода сообщения */
+        footer { background: #f0f0f0; padding: 10px; display: flex; gap: 10px; }
+        footer input { flex: 1; border: 1px solid #ccc; border-radius: 20px; padding: 10px 15px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>Ваш ID для связи: <strong id="my-id">Загрузка...</strong></div>
+        <div class="connect-box">
+            <input type="text" id="peer-id-input" placeholder="Введите ID друга">
+            <button onclick="connectToPeer()">Подключиться</button>
+        </div>
+    </header>
+
+    <div id="chat-box">
+        <div class="msg system">Поделитесь своим ID с другом, либо введите его ID для начала общения.</div>
+    </div>
+
+    <footer>
+        <input type="text" id="message-input" placeholder="Введите сообщение..." disabled onkeypress="checkEnter(event)">
+        <button id="send-btn" onclick="sendMessage()" disabled>Отправить</button>
+    </footer>
+
+    <script>
+        let peer = new Peer(); // Создаем подключение к бесплатному облаку PeerJS
+        let conn = null;
+        const chatBox = document.getElementById('chat-box');
+        const msgInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+
+        // Отображаем ваш личный ID при генерации
+        peer.on('open', (id) => {
+            document.getElementById('my-id').innerText = id;
+        });
+
+        // Ждем входящих подключений от друга
+        peer.on('connection', (connection) => {
+            conn = connection;
+            setupConnection();
+            appendMessage('Система', 'Друг подключился к вам!', 'system');
+        });
+
+        // Функция инициализации связи
+        function connectToPeer() {
+            const peerId = document.getElementById('peer-id-input').value.trim();
+            if (!peerId) return alert('Введите ID!');
+            
+            conn = peer.connect(peerId);
+            setupConnection();
+            appendMessage('Система', 'Попытка подключения...', 'system');
+        }
+
+        // Настройка отправки/приема сообщений
+        function setupConnection() {
+            conn.on('open', () => {
+                msgInput.disabled = false;
+                sendBtn.disabled = false;
+                appendMessage('Система', 'Связь установлена! Можно чатиться.', 'system');
+            });
+
+            conn.on('data', (data) => {
+                appendMessage('Друг', data, 'interlocutor');
+            });
+
+            conn.on('close', () => {
+                appendMessage('Система', 'Собеседник отключился.', 'system');
+                msgInput.disabled = true;
+                sendBtn.disabled = true;
+            });
+        }
+
+        // Отправка текста
+        function sendMessage() {
+            const text = msgInput.value.trim();
+            if (!text || !conn) return;
+
+            conn.send(text); // Отправляем другу
+            appendMessage('Вы', text, 'me'); // Показываем у себя
+            msgInput.value = '';
+        }
+
+        function appendMessage(sender, text, type) {
+            const msgDiv = document.createElement('div');
+            msgDiv.classList.add('msg', type);
+            msgDiv.innerText = text;
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight; // Скролл вниз
+        }
+
+        function checkEnter(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+    </script>
+</body>
+</html>
